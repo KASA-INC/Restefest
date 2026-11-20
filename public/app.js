@@ -13,10 +13,11 @@ const store = {
 };
 
 let code = null;
-let state = { items: [], menu: {} };
+let state = { items: [], menu: {}, events: [], history: {} };
 let list = store.get("list") || "butikk";
 let view = store.get("view") || "list";
 let weekOffset = 0;
+let calOffset = 0;
 
 // ---------- Familiekode ----------
 const ADJ = [
@@ -140,13 +141,15 @@ function showView(v) {
   store.set("view", v);
   $("#view-list").hidden = v !== "list";
   $("#view-menu").hidden = v !== "menu";
-  $("#title").textContent = v === "list" ? "Handleliste" : "Ukemeny";
+  $("#view-cal").hidden = v !== "cal";
+  $("#title").textContent = { list: "Handleliste", menu: "Ukemeny", cal: "Kalender" }[v];
   document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
 }
 
 function render() {
   renderList();
   renderMenu();
+  renderCal();
 }
 
 // ---------- Handleliste ----------
@@ -299,13 +302,19 @@ const fmt = (d) => `${d.getDate()}. ${MONTHS[d.getMonth()]}`;
 
 let builtWeek = null;
 
-function renderMenu() {
-  const monday = mondayOf(weekOffset);
+// Skriver ukenummer og datoer i ukehodet og gir tilbake mandagen og ukenøkkelen.
+function weekHeader(offset, label, dates, thisBtn) {
+  const monday = mondayOf(offset);
   const { w, key } = isoWeek(monday);
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-  $("#weekLabel").textContent = `Uke ${w}` + (weekOffset === 0 ? " · denne uken" : weekOffset === 1 ? " · neste uke" : "");
-  $("#weekDates").textContent = `${fmt(monday)} – ${fmt(sunday)}`;
-  $("#thisWeek").hidden = weekOffset === 0;
+  $(label).textContent = `Uke ${w}` + (offset === 0 ? " · denne uken" : offset === 1 ? " · neste uke" : "");
+  $(dates).textContent = `${fmt(monday)} – ${fmt(sunday)}`;
+  $(thisBtn).hidden = offset === 0;
+  return { monday, key };
+}
+
+function renderMenu() {
+  const { monday, key } = weekHeader(weekOffset, "#weekLabel", "#weekDates", "#thisWeek");
   const week = state.menu[key] || {};
 
   // Bygg kortene på nytt bare når uken endres, ellers oppdater verdier
@@ -361,6 +370,80 @@ $("#prevWeek").onclick = () => { weekOffset--; renderMenu(); };
 $("#nextWeek").onclick = () => { weekOffset++; renderMenu(); };
 $("#thisWeek").onclick = () => { weekOffset = 0; renderMenu(); };
 
+// ---------- Kalender ----------
+const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function renderCal() {
+  const { monday } = weekHeader(calOffset, "#calLabel", "#calDates", "#calThis");
+  const events = state.events || [];
+  const cards = DAYS.map((name, i) => {
+    const date = new Date(monday); date.setDate(monday.getDate() + i);
+    const iso = isoDate(date);
+    const card = document.createElement("div");
+    card.className = "day";
+    card.innerHTML = `
+      <div class="day-head"><span class="day-name"></span><span class="muted small"></span>
+        <button class="add-ev" aria-label="Ny avtale ${name.toLowerCase()}">${icon("plus")}</button></div>
+      <ul class="evs"></ul>`;
+    card.querySelector(".day-name").textContent = name;
+    card.querySelector(".muted").textContent = fmt(date);
+    card.querySelector(".add-ev").onclick = () => openEvent({ date: iso });
+    const todays = events.filter((e) => e.date === iso)
+      .sort((a, b) => (a.time || "").localeCompare(b.time || "") || a.ts - b.ts);
+    card.querySelector(".evs").replaceChildren(...todays.map((ev) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.className = "ev";
+      b.innerHTML = '<span class="ev-time"></span><span class="ev-title"></span>';
+      b.querySelector(".ev-time").textContent = ev.time || "Hele dagen";
+      b.querySelector(".ev-title").textContent = ev.title;
+      b.onclick = () => openEvent(ev);
+      li.append(b);
+      return li;
+    }));
+    return card;
+  });
+  $("#calDays").replaceChildren(...cards);
+}
+
+let editing = null;
+function openEvent(ev) {
+  editing = ev.id ? ev : null;
+  $("#evHead").textContent = editing ? "Endre avtale" : "Ny avtale";
+  $("#evTitle").value = ev.title || "";
+  $("#evDate").value = ev.date;
+  $("#evTime").value = ev.time || "";
+  $("#evDelete").hidden = !editing;
+  $("#evDialog").showModal();
+  if (!editing) $("#evTitle").focus();
+}
+
+$("#evForm").onsubmit = (e) => {
+  e.preventDefault();
+  const data = { title: $("#evTitle").value.trim(), date: $("#evDate").value, time: $("#evTime").value };
+  if (!data.title || !data.date) return;
+  if (editing) {
+    Object.assign(editing, data);
+    send({ t: "evEdit", id: editing.id, ...data });
+  } else {
+    send({ t: "evAdd", ...data });
+  }
+  $("#evDialog").close();
+  renderCal();
+};
+$("#evCancel").onclick = () => $("#evDialog").close();
+$("#evDelete").onclick = () => {
+  if (!editing || !confirm(`Slette «${editing.title}»?`)) return;
+  state.events = state.events.filter((x) => x.id !== editing.id);
+  send({ t: "evDel", id: editing.id });
+  $("#evDialog").close();
+  renderCal();
+};
+
+$("#calPrev").onclick = () => { calOffset--; renderCal(); };
+$("#calNext").onclick = () => { calOffset++; renderCal(); };
+$("#calThis").onclick = () => { calOffset = 0; renderCal(); };
+
 // ---------- Navigasjon og innstillinger ----------
 document.querySelectorAll(".tabbar button").forEach((b) => (b.onclick = () => showView(b.dataset.view)));
 
@@ -378,11 +461,12 @@ async function copy(text, msg) {
 }
 
 const inviteUrl = () => `${location.origin}/?kode=${encodeURIComponent(code)}`;
-const calUrl = () => `${location.host}/cal/${encodeURIComponent(code)}.ics`;
+const calUrl = (feed = "") => `webcal://${location.host}/cal/${encodeURIComponent(code)}${feed}.ics`;
 
 $("#settingsBtn").onclick = () => {
   $("#codeShow").textContent = prettyCode(code);
-  $("#webcalLink").href = `webcal://${calUrl()}`;
+  $("#webcalMenu").href = calUrl();
+  $("#webcalEvents").href = calUrl("/kalender");
   $("#settings").showModal();
 };
 $("#shareBtn").onclick = async () => {
@@ -390,7 +474,6 @@ $("#shareBtn").onclick = async () => {
   if (navigator.share) { try { await navigator.share(data); } catch {} }
   else copy(inviteUrl(), "Lenke kopiert");
 };
-$("#copyCal").onclick = () => copy(`${location.protocol}//${calUrl()}`, "Kalenderadresse kopiert");
 $("#leaveBtn").onclick = () => {
   if (!confirm("Forlate familien på denne enheten? Listene blir liggende for de andre.")) return;
   store.del("code");

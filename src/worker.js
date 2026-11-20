@@ -7,6 +7,9 @@ const WEEK_RE = /^\d{4}-W\d{2}$/;
 const MAX_ITEMS = 500;
 const MAX_WEEKS = 60;
 const MAX_HISTORY = 400;
+const MAX_EVENTS = 2000;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const normCode = (s) => decodeURIComponent(s).normalize("NFC").trim().toLowerCase();
 
@@ -25,11 +28,12 @@ export default {
       return env.FAMILY.get(env.FAMILY.idFromName(code)).fetch(req);
     }
 
-    // Kalenderabonnement: /cal/<kode>.ics
-    if ((m = url.pathname.match(/^\/cal\/([^/]+?)(?:\.ics)?$/))) {
+    // Kalenderabonnement: /cal/<kode>.ics (ukemeny) og /cal/<kode>/kalender.ics (avtaler)
+    if ((m = url.pathname.match(/^\/cal\/([^/]+?)(\/kalender)?(?:\.ics)?$/))) {
       const code = normCode(m[1]);
       if (!CODE_RE.test(code)) return new Response("Ugyldig familiekode", { status: 400 });
-      const ics = await env.FAMILY.get(env.FAMILY.idFromName(code)).ics(url.host);
+      const kind = m[2] ? "events" : "menu";
+      const ics = await env.FAMILY.get(env.FAMILY.idFromName(code)).ics(url.host, kind);
       return new Response(ics, {
         headers: {
           "Content-Type": "text/calendar; charset=utf-8",
@@ -49,6 +53,7 @@ export class Family extends DurableObject {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     ctx.blockConcurrencyWhile(async () => {
       this.state = (await ctx.storage.get("state")) || { items: [], menu: {} };
+      this.state.events ||= [];
       if (!this.state.history) {
         // Første gang: bygg historikk fra varene som allerede ligger inne.
         this.state.history = {};
@@ -136,6 +141,30 @@ export class Family extends DurableObject {
         st.items = st.items.filter((i) => !(i.list === msg.list && i.done));
         return st.items.length !== n;
       }
+      case "evAdd":
+      case "evEdit": {
+        const title = str(msg.title, 200);
+        const date = str(msg.date, 10);
+        const time = str(msg.time, 5);
+        if (!title || !DATE_RE.test(date) || (time && !TIME_RE.test(time))) return false;
+        if (msg.t === "evEdit") {
+          const ev = st.events.find((e) => e.id === msg.id);
+          if (!ev) return false;
+          Object.assign(ev, { title, date, time, ts: Date.now() });
+        } else {
+          // Rydd bort avtaler eldre enn ett år.
+          const cutoff = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+          st.events = st.events.filter((e) => e.date >= cutoff);
+          if (st.events.length >= MAX_EVENTS) return false;
+          st.events.push({ id: crypto.randomUUID(), title, date, time, ts: Date.now() });
+        }
+        return true;
+      }
+      case "evDel": {
+        const n = st.events.length;
+        st.events = st.events.filter((e) => e.id !== msg.id);
+        return st.events.length !== n;
+      }
       case "menu": {
         const day = Number(msg.day);
         if (!WEEK_RE.test(msg.week) || !Number.isInteger(day) || day < 0 || day > 6) return false;
@@ -167,43 +196,68 @@ export class Family extends DurableObject {
     }
   }
 
-  // RPC fra worker: lager iCalendar-feed av ukemenyen.
-  ics(host) {
+  // RPC fra worker: lager iCalendar-feed av ukemenyen eller avtalene.
+  ics(host, kind = "menu") {
     const lines = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Handleliste//Ukemeny//NO",
+      "PRODID:-//Handleliste//Familie//NO",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
-      "X-WR-CALNAME:Middag",
+      `X-WR-CALNAME:${kind === "menu" ? "Middag" : "Familiekalender"}`,
       "X-WR-TIMEZONE:Europe/Oslo",
       "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
       "X-PUBLISHED-TTL:PT1H",
     ];
     const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
-    for (const [week, days] of Object.entries(this.state.menu)) {
-      const monday = isoWeekMonday(week);
-      for (const [d, { dish, link }] of Object.entries(days)) {
-        if (!dish) continue;
-        const start = new Date(monday.getTime() + Number(d) * 864e5);
-        const end = new Date(start.getTime() + 864e5);
-        lines.push(
-          "BEGIN:VEVENT",
-          `UID:${week}-${d}@${host}`,
-          `DTSTAMP:${stamp}`,
-          `DTSTART;VALUE=DATE:${ymd(start)}`,
-          `DTEND;VALUE=DATE:${ymd(end)}`,
-          `SUMMARY:${esc("🍽 " + dish)}`,
-          "TRANSP:TRANSPARENT"
-        );
-        if (link) lines.push(`URL:${esc(link)}`, `DESCRIPTION:${esc("Oppskrift: " + link)}`);
-        lines.push("END:VEVENT");
+    const allDay = (uid, date, summary, extra = []) => {
+      const end = new Date(date.getTime() + 864e5);
+      lines.push("BEGIN:VEVENT", `UID:${uid}@${host}`, `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${ymd(date)}`, `DTEND;VALUE=DATE:${ymd(end)}`,
+        `SUMMARY:${esc(summary)}`, "TRANSP:TRANSPARENT", ...extra, "END:VEVENT");
+    };
+
+    if (kind === "menu") {
+      for (const [week, days] of Object.entries(this.state.menu)) {
+        const monday = isoWeekMonday(week);
+        for (const [d, { dish, link }] of Object.entries(days)) {
+          if (!dish) continue;
+          const extra = link ? [`URL:${esc(link)}`, `DESCRIPTION:${esc("Oppskrift: " + link)}`] : [];
+          allDay(`${week}-${d}`, new Date(monday.getTime() + Number(d) * 864e5), "🍽 " + dish, extra);
+        }
+      }
+    } else {
+      lines.push(...OSLO_TZ);
+      for (const ev of this.state.events) {
+        if (!ev.time) {
+          allDay(ev.id, new Date(ev.date + "T00:00:00Z"), ev.title);
+          continue;
+        }
+        // Avtaler med klokkeslett varer én time som standard.
+        const [h, mi] = ev.time.split(":").map(Number);
+        const d = ev.date.replace(/-/g, "");
+        const pad = (n) => String(n).padStart(2, "0");
+        const endH = h + 1;
+        const endDate = endH === 24 ? ymd(new Date(new Date(ev.date + "T00:00:00Z").getTime() + 864e5)) : d;
+        lines.push("BEGIN:VEVENT", `UID:${ev.id}@${host}`, `DTSTAMP:${stamp}`,
+          `DTSTART;TZID=Europe/Oslo:${d}T${pad(h)}${pad(mi)}00`,
+          `DTEND;TZID=Europe/Oslo:${endDate}T${pad(endH % 24)}${pad(mi)}00`,
+          `SUMMARY:${esc(ev.title)}`, "END:VEVENT");
       }
     }
     lines.push("END:VCALENDAR");
     return lines.map(fold).join("\r\n") + "\r\n";
   }
 }
+
+const OSLO_TZ = [
+  "BEGIN:VTIMEZONE", "TZID:Europe/Oslo",
+  "BEGIN:DAYLIGHT", "TZOFFSETFROM:+0100", "TZOFFSETTO:+0200", "TZNAME:CEST",
+  "DTSTART:19700329T020000", "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU", "END:DAYLIGHT",
+  "BEGIN:STANDARD", "TZOFFSETFROM:+0200", "TZOFFSETTO:+0100", "TZNAME:CET",
+  "DTSTART:19701025T030000", "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU", "END:STANDARD",
+  "END:VTIMEZONE",
+];
 
 function isoWeekMonday(key) {
   const [y, w] = key.split("-W").map(Number);

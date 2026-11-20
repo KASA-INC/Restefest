@@ -32,6 +32,9 @@
     <symbol id="i-calendar-sync" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="M3.5 5h17v15.5h-17ZM8 3v4m8-4v4M3.5 10h17"/><path d="M9.835 14a2.5 2.5 0 0 1 4.665 1.25"/><path d="m13.25 14l1.25 1.25L15.75 14m-1.585 2.5A2.5 2.5 0 0 1 9.5 15.25"/><path d="m8.25 16.5l1.25-1.25l1.25 1.25"/></g></symbol>
     <symbol id="i-copy-link" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="M8.5 8.5h12v12h-12Z"/><path d="M4 14.5V6a2.5 2.5 0 0 1 2.5-2.5h8M13 12h-.5a2.5 2.5 0 0 0 0 5h.5m3-5h.5a2.5 2.5 0 0 1 0 5H16m-3-2.5h3"/></g></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M13 6V4.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2H11a2 2 0 0 0 2-2V18m-5-6h13m-3.5-3.5L21 12l-3.5 3.5"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M3.5 5h17v15.5h-17ZM8 3v4m8-4v4M3.5 10h17M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></symbol>
+    <symbol id="i-chef-recipe-book" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="M12.727 21.5H7q-.123 0-.245-.012t-.243-.036q-.12-.024-.238-.06t-.231-.082t-.221-.105t-.211-.126q-.102-.069-.197-.146q-.095-.078-.182-.165t-.165-.182t-.146-.197t-.126-.211t-.105-.221q-.047-.114-.082-.231t-.06-.238t-.036-.243T4.5 19V5q0-.123.012-.245t.036-.243q.024-.12.06-.238t.082-.231t.105-.221q.058-.109.126-.211q.069-.102.146-.197q.078-.095.165-.182t.182-.165q.095-.077.197-.146t.211-.126q.108-.058.221-.105q.114-.047.231-.082t.238-.06q.121-.024.243-.036T7 2.5h12.5v8.573"/><path d="M4.5 19q0-.123.012-.245t.036-.243t.06-.238t.082-.231q.047-.113.105-.221q.058-.109.126-.211q.069-.102.146-.197q.078-.095.165-.182t.182-.165t.197-.146t.211-.126q.108-.058.221-.105q.114-.047.231-.082t.238-.06t.243-.036T7 16.5h4.573m3.927 5v-3c-1.75-.5-1.5-3.5.5-3.25c.5-2 3.5-2 4 0c2-.25 2.25 2.75.5 3.25v3Z"/></g></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M5.5 6.5h13l-1 14h-11Zm-2 0h17M9 6.5v-2c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v2m-5 4v6m4-6v6"/></symbol>
   </svg>
   <!-- Oppstart: lag eller bli med i familie -->
   <section id="join" class="screen" hidden>
@@ -103,6 +106,20 @@
         <button id="thisWeek" class="link-btn center" hidden>Gå til denne uken</button>
         <div id="days" class="days"></div>
       </div>
+
+      <!-- Kalender -->
+      <div id="view-cal" class="view" hidden>
+        <div class="week-nav">
+          <button id="calPrev" class="icon-btn" aria-label="Forrige uke"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div>
+            <div id="calLabel" class="week-label"></div>
+            <div id="calDates" class="muted small"></div>
+          </div>
+          <button id="calNext" class="icon-btn" aria-label="Neste uke"><svg class="i" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+        </div>
+        <button id="calThis" class="link-btn center" hidden>Gå til denne uken</button>
+        <div id="calDays" class="days"></div>
+      </div>
     </main>
 
     <nav class="tabbar">
@@ -111,8 +128,12 @@
         Handleliste
       </button>
       <button data-view="menu">
-        <svg class="i" aria-hidden="true"><use href="#i-calendar-week"/></svg>
+        <svg class="i" aria-hidden="true"><use href="#i-chef-recipe-book"/></svg>
         Ukemeny
+      </button>
+      <button data-view="cal">
+        <svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg>
+        Kalender
       </button>
     </nav>
   </section>
@@ -131,13 +152,36 @@
       <button type="button" id="shareBtn" class="primary wide"><svg class="i" aria-hidden="true"><use href="#i-share-ios"/></svg> Del invitasjonslenke</button>
 
       <h3>Kalender på iPhone</h3>
-      <p class="muted small">Abonner på ukemenyen i Kalender-appen. Middagene dukker opp som heldagshendelser og oppdateres automatisk.</p>
-      <a id="webcalLink" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner i Kalender</a>
-      <button type="button" id="copyCal" class="link-btn"><svg class="i sm" aria-hidden="true"><use href="#i-copy-link"/></svg> Kopier kalenderadresse</button>
+      <p class="muted small">Vil dere også se ukemenyen eller kalenderen i Kalender-appen på iPhone, kan dere abonnere. Den oppdateres automatisk omtrent én gang i timen.</p>
+      <a id="webcalMenu" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner på ukemenyen</a>
+      <a id="webcalEvents" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner på kalenderen</a>
 
       <h3>Bytt familie</h3>
       <button type="button" id="leaveBtn" class="danger wide"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Forlat familien</button>
       <p class="muted small">Listene blir liggende for de andre. Du kan bli med igjen med koden.</p>
+    </form>
+  </dialog>
+
+  <!-- Ny / endre avtale -->
+  <dialog id="evDialog">
+    <form id="evForm" class="sheet">
+      <div class="sheet-head">
+        <button type="button" id="evCancel" class="link-btn">Avbryt</button>
+        <h2 id="evHead">Ny avtale</h2>
+        <button class="link-btn strong">Lagre</button>
+      </div>
+      <label class="field">Hva
+        <input id="evTitle" required maxlength="200" placeholder="F.eks. Fotballtrening" enterkeyhint="done">
+      </label>
+      <div class="field-row">
+        <label class="field">Dato
+          <input id="evDate" type="date" required>
+        </label>
+        <label class="field"><span>Tid <span class="muted small">(valgfritt)</span></span>
+          <input id="evTime" type="time">
+        </label>
+      </div>
+      <button type="button" id="evDelete" class="danger wide" hidden><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg> Slett avtale</button>
     </form>
   </dialog>
 
