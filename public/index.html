@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Handleliste</title>
+  <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16181b" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Handleliste">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Oppstart: lag eller bli med i familie -->
+  <section id="join" class="screen" hidden>
+    <div class="join-card">
+      <h1>Handleliste</h1>
+      <p class="muted">Alle som bruker samme familiekode ser den samme listen og ukemenyen, med en gang.</p>
+      <button id="createBtn" class="primary wide">Lag ny familie</button>
+      <div class="or"><span>eller</span></div>
+      <form id="joinForm">
+        <label for="joinCode">Har du en familiekode?</label>
+        <div class="row">
+          <input id="joinCode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="f.eks. kx7m-p2ta-9qhe">
+          <button class="primary">Bli med</button>
+        </div>
+        <p id="joinErr" class="err" hidden>Koden må være minst 6 tegn (a–z, 0–9 og bindestrek).</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Hovedapp -->
+  <section id="app" class="screen" hidden>
+    <header class="top">
+      <h1 id="title">Handleliste</h1>
+      <span id="conn" class="conn" title="Tilkobling"></span>
+      <button id="settingsBtn" class="icon-btn" aria-label="Innstillinger">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </header>
+
+    <main>
+      <!-- Handleliste -->
+      <div id="view-list" class="view">
+        <div class="seg" role="tablist">
+          <button role="tab" data-list="butikk" class="active">I butikk <span class="count" data-count="butikk"></span></button>
+          <button role="tab" data-list="oda">Oda <span class="count" data-count="oda"></span></button>
+        </div>
+
+        <form id="addForm" class="add">
+          <input id="addInput" placeholder="Legg til vare…" autocomplete="off" enterkeyhint="done" maxlength="200">
+          <button class="primary" aria-label="Legg til">+</button>
+        </form>
+
+        <ul id="todo" class="items"></ul>
+        <p id="empty" class="empty" hidden>Listen er tom.</p>
+
+        <div id="doneWrap" hidden>
+          <div class="done-head">
+            <h2>Handlet</h2>
+            <button id="clearBtn" class="link-btn">Fjern handlede</button>
+          </div>
+          <ul id="done" class="items done"></ul>
+        </div>
+
+        <a id="odaLink" class="oda-link" href="https://oda.com/no/" target="_blank" rel="noopener" hidden>Åpne Oda ↗</a>
+      </div>
+
+      <!-- Ukemeny -->
+      <div id="view-menu" class="view" hidden>
+        <div class="week-nav">
+          <button id="prevWeek" class="icon-btn" aria-label="Forrige uke">‹</button>
+          <div>
+            <div id="weekLabel" class="week-label"></div>
+            <div id="weekDates" class="muted small"></div>
+          </div>
+          <button id="nextWeek" class="icon-btn" aria-label="Neste uke">›</button>
+        </div>
+        <button id="thisWeek" class="link-btn center" hidden>Gå til denne uken</button>
+        <div id="days" class="days"></div>
+      </div>
+    </main>
+
+    <nav class="tabbar">
+      <button data-view="list" class="active">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/></svg>
+        Handleliste
+      </button>
+      <button data-view="menu">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+        Ukemeny
+      </button>
+    </nav>
+  </section>
+
+  <!-- Innstillinger -->
+  <dialog id="settings">
+    <form method="dialog" class="sheet">
+      <div class="sheet-head">
+        <h2>Innstillinger</h2>
+        <button class="link-btn" value="close">Ferdig</button>
+      </div>
+
+      <h3>Familiekode</h3>
+      <div class="code-box"><code id="codeShow"></code></div>
+      <p class="muted small">Del koden (eller lenken) med resten av familien. Alle med koden kan se og endre listene.</p>
+      <button type="button" id="shareBtn" class="primary wide">Del invitasjonslenke</button>
+
+      <h3>Kalender på iPhone</h3>
+      <p class="muted small">Abonner på ukemenyen i Kalender-appen. Middagene dukker opp som heldagshendelser og oppdateres automatisk.</p>
+      <a id="webcalLink" class="btn wide">Abonner i Kalender</a>
+      <button type="button" id="copyCal" class="link-btn">Kopier kalenderadresse</button>
+
+      <h3>Bytt familie</h3>
+      <button type="button" id="leaveBtn" class="danger wide">Forlat familien på denne enheten</button>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
