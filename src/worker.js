@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { cleanRepeat, endIso, firstIso, rrule } from "../public/recur.js";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -147,16 +148,24 @@ export class Family extends DurableObject {
         const date = str(msg.date, 10);
         const time = str(msg.time, 5);
         if (!title || !DATE_RE.test(date) || (time && !TIME_RE.test(time))) return false;
+        const repeat = cleanRepeat(msg.repeat, date);
+        const data = { title, date, time, ts: Date.now() };
+        if (repeat) data.repeat = repeat;
         if (msg.t === "evEdit") {
           const ev = st.events.find((e) => e.id === msg.id);
           if (!ev) return false;
-          Object.assign(ev, { title, date, time, ts: Date.now() });
+          delete ev.repeat;
+          Object.assign(ev, data);
         } else {
-          // Rydd bort avtaler eldre enn ett år.
+          // Rydd bort avtaler som var ferdige for over ett år siden.
           const cutoff = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
-          st.events = st.events.filter((e) => e.date >= cutoff);
+          st.events = st.events.filter((e) => {
+            if (!e.repeat) return e.date >= cutoff;
+            const end = endIso(e);
+            return !end || end >= cutoff;
+          });
           if (st.events.length >= MAX_EVENTS) return false;
-          st.events.push({ id: crypto.randomUUID(), title, date, time, ts: Date.now() });
+          st.events.push({ id: crypto.randomUUID(), ...data });
         }
         return true;
       }
@@ -229,20 +238,23 @@ export class Family extends DurableObject {
     } else {
       lines.push(...OSLO_TZ);
       for (const ev of this.state.events) {
+        // Gjentakende avtaler starter på første dato de faktisk skjer.
+        const date = ev.repeat ? firstIso(ev) : ev.date;
+        const rule = ev.repeat ? [rrule(ev, !!ev.time)] : [];
         if (!ev.time) {
-          allDay(ev.id, new Date(ev.date + "T00:00:00Z"), ev.title);
+          allDay(ev.id, new Date(date + "T00:00:00Z"), ev.title, rule);
           continue;
         }
         // Avtaler med klokkeslett varer én time som standard.
         const [h, mi] = ev.time.split(":").map(Number);
-        const d = ev.date.replace(/-/g, "");
+        const d = date.replace(/-/g, "");
         const pad = (n) => String(n).padStart(2, "0");
         const endH = h + 1;
-        const endDate = endH === 24 ? ymd(new Date(new Date(ev.date + "T00:00:00Z").getTime() + 864e5)) : d;
+        const endDate = endH === 24 ? ymd(new Date(new Date(date + "T00:00:00Z").getTime() + 864e5)) : d;
         lines.push("BEGIN:VEVENT", `UID:${ev.id}@${host}`, `DTSTAMP:${stamp}`,
           `DTSTART;TZID=Europe/Oslo:${d}T${pad(h)}${pad(mi)}00`,
           `DTEND;TZID=Europe/Oslo:${endDate}T${pad(endH % 24)}${pad(mi)}00`,
-          `SUMMARY:${esc(ev.title)}`, "END:VEVENT");
+          ...rule, `SUMMARY:${esc(ev.title)}`, "END:VEVENT");
       }
     }
     lines.push("END:VCALENDAR");

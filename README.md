@@ -4,8 +4,8 @@ Enkel familie-handleliste med sanntidssynk via **familiekode**.
 
 - **Handleliste** med to faner: *I butikk* og *Oda*. Trykk for å krysse av, «Fjern handlede» rydder.
 - **Autoutfylling**: forslag fra tidligere varer mens du skriver (mest brukte først, delt i familien). Trykk × på et forslag for å glemme det.
-- **Kalender**: felles avtaler per uke (tittel, dato, valgfritt klokkeslett). Kan også abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>/kalender.ics`).
-- **Ukemeny**: Rett + Link for mandag–søndag, med bla mellom uker.
+- **Kalender**: felles avtaler per uke (tittel, dato, valgfritt klokkeslett). Avtaler kan gjentas hver dag, hver uke eller annenhver uke (på valgte ukedager), hver måned eller hvert år – i 1, 3 eller 6 måneder, eller for alltid. Kan også abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>/kalender.ics`).
+- **Ukemeny**: Rett + Link for mandag–søndag, med kalenderens avtaler i liten skrift. Viser inneværende uke mandag–torsdag og neste uke fra fredag kl. 00.00 (Oda-bestilling).
 - **Abonnement**: ukemenyen kan også abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>.ics`).
 - Familiekoden er et adjektiv + en matrett, f.eks. **Svett-Taco**. Store/små bokstaver og mellomrom spiller ingen rolle. Ingen innlogging; koden fungerer som passord, så del den bare med familien.
 

@@ -1,4 +1,4 @@
-"use strict";
+import { occursOn, endIso, weekday } from "./recur.js";
 
 const $ = (s) => document.querySelector(s);
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -16,7 +16,10 @@ let code = null;
 let state = { items: [], menu: {}, events: [], history: {} };
 let list = store.get("list") || "butikk";
 let view = store.get("view") || "list";
-let weekOffset = 0;
+// Ukemenyen viser inneværende uke mandag–torsdag. Fra fredag kl. 00.00
+// (da bestilles Oda) viser den neste uke.
+const menuBase = () => (new Date().getDay() + 6) % 7 >= 4 ? 1 : 0;
+let weekOffset = menuBase();
 let calOffset = 0;
 
 // ---------- Familiekode ----------
@@ -131,7 +134,15 @@ function setConn(s) {
 
 // iOS kobler fra når appen er i bakgrunnen – koble til igjen straks den vises.
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") { retry = 0; connect(); }
+  if (document.visibilityState === "visible") {
+    retry = 0;
+    connect();
+    // Har det blitt fredag (eller ny uke) mens appen lå i bakgrunnen? Hopp til riktig uke.
+    if (weekOffset === shownBase && menuBase() !== shownBase) {
+      weekOffset = shownBase = menuBase();
+      renderMenu();
+    }
+  }
 });
 window.addEventListener("online", () => { retry = 0; connect(); });
 
@@ -302,6 +313,8 @@ const fmt = (d) => `${d.getDate()}. ${MONTHS[d.getMonth()]}`;
 
 let builtWeek = null;
 
+let shownBase = weekOffset;
+
 // Skriver ukenummer og datoer i ukehodet og gir tilbake mandagen og ukenøkkelen.
 function weekHeader(offset, label, dates, thisBtn) {
   const monday = mondayOf(offset);
@@ -315,6 +328,9 @@ function weekHeader(offset, label, dates, thisBtn) {
 
 function renderMenu() {
   const { monday, key } = weekHeader(weekOffset, "#weekLabel", "#weekDates", "#thisWeek");
+  const base = menuBase();
+  $("#thisWeek").hidden = weekOffset === base;
+  $("#thisWeek").textContent = base === 1 ? "Gå til neste uke" : "Gå til denne uken";
   const week = state.menu[key] || {};
 
   // Bygg kortene på nytt bare når uken endres, ellers oppdater verdier
@@ -327,6 +343,7 @@ function renderMenu() {
       card.className = "day";
       card.innerHTML = `
         <div class="day-head"><span class="day-name"></span><span class="muted small"></span></div>
+        <ul class="day-evs"></ul>
         <input class="dish" placeholder="Rett" maxlength="200" enterkeyhint="next">
         <input class="link" placeholder="Link til oppskrift" type="url" inputmode="url" autocapitalize="off" maxlength="1000" enterkeyhint="done">
         <a class="recipe" target="_blank" rel="noopener" hidden>Åpne oppskrift ${icon("external-link", "i sm")}</a>`;
@@ -354,6 +371,13 @@ function renderMenu() {
   }
 
   $("#days").querySelectorAll(".day").forEach((card, i) => {
+    const date = new Date(monday); date.setDate(monday.getDate() + i);
+    card.querySelector(".day-evs").replaceChildren(...eventsOn(isoDate(date)).map((ev) => {
+      const li = document.createElement("li");
+      if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time; li.append(b); }
+      li.append(ev.title);
+      return li;
+    }));
     const entry = week[i] || { dish: "", link: "" };
     const dish = card.querySelector(".dish");
     const link = card.querySelector(".link");
@@ -368,14 +392,17 @@ function renderMenu() {
 
 $("#prevWeek").onclick = () => { weekOffset--; renderMenu(); };
 $("#nextWeek").onclick = () => { weekOffset++; renderMenu(); };
-$("#thisWeek").onclick = () => { weekOffset = 0; renderMenu(); };
+$("#thisWeek").onclick = () => { weekOffset = menuBase(); renderMenu(); };
 
 // ---------- Kalender ----------
+// Avtaler (også gjentakende) som skjer på en dato, sortert: heldag først, så etter klokkeslett.
+const eventsOn = (iso) => (state.events || []).filter((e) => occursOn(e, iso))
+  .sort((a, b) => (a.time || "").localeCompare(b.time || "") || a.ts - b.ts);
+
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function renderCal() {
   const { monday } = weekHeader(calOffset, "#calLabel", "#calDates", "#calThis");
-  const events = state.events || [];
   const cards = DAYS.map((name, i) => {
     const date = new Date(monday); date.setDate(monday.getDate() + i);
     const iso = isoDate(date);
@@ -388,15 +415,14 @@ function renderCal() {
     card.querySelector(".day-name").textContent = name;
     card.querySelector(".muted").textContent = fmt(date);
     card.querySelector(".add-ev").onclick = () => openEvent({ date: iso });
-    const todays = events.filter((e) => e.date === iso)
-      .sort((a, b) => (a.time || "").localeCompare(b.time || "") || a.ts - b.ts);
-    card.querySelector(".evs").replaceChildren(...todays.map((ev) => {
+    card.querySelector(".evs").replaceChildren(...eventsOn(iso).map((ev) => {
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.className = "ev";
       b.innerHTML = '<span class="ev-time"></span><span class="ev-title"></span>';
       b.querySelector(".ev-time").textContent = ev.time || "Hele dagen";
       b.querySelector(".ev-title").textContent = ev.title;
+      if (ev.repeat) b.querySelector(".ev-title").insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
       b.onclick = () => openEvent(ev);
       li.append(b);
       return li;
@@ -407,29 +433,92 @@ function renderCal() {
 }
 
 let editing = null;
+let pickedDays = [];
+
+const fmtLong = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d}. ${MONTHS[m - 1]} ${y}`;
+};
+
+// Viser/skjuler feltene for gjentakelse og skriver en kort forklaring.
+function syncRepeatUi() {
+  const freq = $("#evFreq").value;
+  const date = $("#evDate").value;
+  const weekly = freq === "weekly" || freq === "biweekly";
+  $("#evDurWrap").hidden = !freq;
+  $("#evDaysWrap").hidden = !weekly;
+  $("#evDateLabel").textContent = freq ? "Fra dato" : "Dato";
+  if (weekly && !pickedDays.length && date) pickedDays = [weekday(date)];
+  document.querySelectorAll("#evDays button").forEach((b) =>
+    b.setAttribute("aria-pressed", pickedDays.includes(Number(b.dataset.d))));
+
+  const hint = [];
+  if (freq === "monthly" && date) hint.push(`Den ${Number(date.slice(8))}. hver måned.`);
+  if (freq === "yearly" && date) hint.push(`Hvert år ${fmtLong(date).replace(/ \d+$/, "")}.`);
+  if (freq && date) {
+    const end = endIso({ date, repeat: { dur: $("#evDur").value } });
+    if (end) {
+      const last = new Date(end + "T12:00:00"); last.setDate(last.getDate() - 1);
+      hint.push(`Siste gang senest ${fmtLong(isoDate(last))}.`);
+    }
+  }
+  if (editing?.repeat) hint.push("Endringer gjelder alle gjentakelsene.");
+  $("#evHint").textContent = hint.join(" ");
+  $("#evHint").hidden = !hint.length;
+}
+
 function openEvent(ev) {
   editing = ev.id ? ev : null;
   $("#evHead").textContent = editing ? "Endre avtale" : "Ny avtale";
   $("#evTitle").value = ev.title || "";
   $("#evDate").value = ev.date;
   $("#evTime").value = ev.time || "";
+  $("#evFreq").value = ev.repeat?.freq || "";
+  $("#evDur").value = ev.repeat?.dur || "inf";
+  pickedDays = [...(ev.repeat?.days || [])];
   $("#evDelete").hidden = !editing;
+  $("#evDelete").lastChild.textContent = editing?.repeat ? " Slett alle gjentakelser" : " Slett avtale";
+  syncRepeatUi();
   $("#evDialog").showModal();
   if (!editing) $("#evTitle").focus();
 }
+
+$("#evFreq").onchange = syncRepeatUi;
+$("#evDur").onchange = syncRepeatUi;
+$("#evDate").onchange = () => {
+  // Ny startdato: la ukedagsvalget følge med hvis bare én dag var valgt automatisk.
+  if (pickedDays.length <= 1) pickedDays = [];
+  syncRepeatUi();
+};
+document.querySelectorAll("#evDays button").forEach((b) => {
+  b.onclick = () => {
+    const d = Number(b.dataset.d);
+    pickedDays = pickedDays.includes(d) ? pickedDays.filter((x) => x !== d) : [...pickedDays, d].sort();
+    syncRepeatUi();
+  };
+});
 
 $("#evForm").onsubmit = (e) => {
   e.preventDefault();
   const data = { title: $("#evTitle").value.trim(), date: $("#evDate").value, time: $("#evTime").value };
   if (!data.title || !data.date) return;
+  const freq = $("#evFreq").value;
+  if (freq) {
+    data.repeat = { freq, dur: $("#evDur").value };
+    if (freq === "weekly" || freq === "biweekly") {
+      if (!pickedDays.length) { toast("Velg minst én dag"); return; }
+      data.repeat.days = pickedDays;
+    }
+  }
   if (editing) {
+    delete editing.repeat;
     Object.assign(editing, data);
     send({ t: "evEdit", id: editing.id, ...data });
   } else {
     send({ t: "evAdd", ...data });
   }
   $("#evDialog").close();
-  renderCal();
+  render();
 };
 $("#evCancel").onclick = () => $("#evDialog").close();
 $("#evDelete").onclick = () => {
@@ -437,7 +526,7 @@ $("#evDelete").onclick = () => {
   state.events = state.events.filter((x) => x.id !== editing.id);
   send({ t: "evDel", id: editing.id });
   $("#evDialog").close();
-  renderCal();
+  render();
 };
 
 $("#calPrev").onclick = () => { calOffset--; renderCal(); };
