@@ -159,7 +159,9 @@ function showView(v) {
   $("#view-list").hidden = v !== "list";
   $("#view-menu").hidden = v !== "menu";
   $("#view-cal").hidden = v !== "cal";
-  $("#title").textContent = { home: greeting(), list: "Lister", menu: "Ukemeny", cal: "Kalender" }[v];
+  $("#title").textContent = { list: "Lister", menu: "Ukemeny", cal: "Kalender" }[v] || "";
+  $("#title").classList.toggle("clock", v === "home");
+  if (v === "home") tickClock(true);
   window.scrollTo(0, 0);
   document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
 }
@@ -989,11 +991,24 @@ $("#calNext").onclick = () => { calOffset++; renderCal(); };
 $("#calThis").onclick = () => { calOffset = 0; renderCal(); };
 
 // ---------- Startskjerm ----------
-const MONTHS_FULL = ["januar", "februar", "mars", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "desember"];
-function greeting() {
-  const h = new Date().getHours();
-  return h < 5 ? "God natt" : h < 10 ? "God morgen" : h < 17 ? "God dag" : h < 23 ? "God kveld" : "God natt";
+// Startskjermens overskrift: «Søn 29. nov 14:32», med klokke som går.
+let shownClock = "";
+function tickClock(force = false) {
+  if (view !== "home") return;
+  const now = new Date();
+  const dayName = SHORT_DAYS[(now.getDay() + 6) % 7];
+  const date = `${dayName[0].toUpperCase() + dayName.slice(1)} ${now.getDate()}. ${MONTHS[now.getMonth()]}`;
+  const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  if (!force && shownClock === date + time) return;
+  const firstOfDay = shownClock && !shownClock.startsWith(date);
+  shownClock = date + time;
+  const t = document.createElement("span");
+  t.className = "time";
+  t.textContent = time;
+  $("#title").replaceChildren(date + " ", t);
+  if (firstOfDay) renderHome(); // ny dag: oppdater middag, aktiviteter osv.
 }
+setInterval(tickClock, 1000);
 
 // Dagens middag lagres alltid på dagens dato (uavhengig av hvilken uke ukemenyen viser).
 const todaySlot = () => { const d = new Date(); return { key: isoWeek(d).key, day: (d.getDay() + 6) % 7 }; };
@@ -1013,9 +1028,9 @@ $("#hMore").onclick = () => { list = hList; store.set("list", list); renderList(
 function renderHome() {
   const now = new Date();
   const { key, day } = todaySlot();
-  if (view === "home") $("#title").textContent = greeting();
+  tickClock(true);
   const hol = showHolidays ? holidaysOn(isoDate(now)).map((h) => h.title) : [];
-  $("#homeDate").textContent = [`${DAYS[day]} ${now.getDate()}. ${MONTHS_FULL[now.getMonth()]}`, `uke ${isoWeek(now).w}`, ...hol].join(" · ");
+  $("#homeDate").textContent = [`Uke ${isoWeek(now).w}`, ...hol].join(" · ");
   $("#homeDate").classList.toggle("red-day", showHolidays && redDay(isoDate(now)));
 
   // Middag i dag

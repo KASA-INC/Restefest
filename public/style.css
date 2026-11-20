@@ -377,3 +377,7 @@ input:disabled { opacity: .45; }
 .check-row { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 500; cursor: pointer; }
 .check-row input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
 .check-row .i.sm { color: var(--accent); margin: 0 -4px 0 0; }
+
+/* Klokke på startskjermen */
+#title.clock { white-space: nowrap; font-size: min(28px, 7.2vw); font-variant-numeric: tabular-nums; }
+#title.clock .time { color: var(--accent); }
