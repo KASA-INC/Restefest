@@ -262,3 +262,33 @@ dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .ev-time small { color: var(--muted); font-weight: 500; font-size: 13px; }
 #evAllDay { margin: -4px 0 0; }
 input:disabled { opacity: .45; }
+
+/* Startskjerm */
+.home-date { margin: -6px 2px 14px; font-size: 15px; }
+.card { background: var(--surface); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); display: grid; gap: 10px; margin-bottom: 14px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-head h2 { font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.card-head h2 .i { color: var(--accent); width: 22px; height: 22px; }
+.card-head .link-btn { padding: 4px 0; font-size: 15px; }
+.card .add, .card .qa { margin: 0; }
+.card .suggest { margin: -2px 0 0; }
+.card .dish { font-weight: 600; }
+.card .evs .ev { padding: 9px 0; }
+.items.flat { background: none; box-shadow: none; border-radius: 0; margin: -4px 0; }
+.items.flat .check { padding-left: 0; }
+.items.flat .del { padding-right: 0; }
+#hNoEvents, #hEmpty { margin: 0; }
+#hMore { justify-self: start; padding: 0; }
+.ev.past { opacity: .5; }
+.ev .now { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-ink); background: var(--accent); border-radius: 6px; padding: 1px 5px; margin-left: 6px; vertical-align: 2px; }
+.mini-seg { display: flex; gap: 2px; background: var(--line); padding: 2px; border-radius: 9px; }
+.mini-seg button { border: 0; background: none; border-radius: 7px; padding: 4px 9px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.mini-seg button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.mini-seg span { font-weight: 500; }
+.tomorrow h2 { font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.tomorrow .day-evs { margin: 0; font-size: 15px; gap: 4px; color: var(--text); }
+.tabbar button { max-width: 160px; }
+
+/* Varsel med angre-knapp */
+.toast { display: flex; align-items: center; gap: 14px; }
+.toast-btn { background: none; border: 0; color: var(--accent-soft); font-weight: 700; padding: 0; }

@@ -2,6 +2,7 @@
 
 Enkel familie-handleliste med sanntidssynk via **familiekode**.
 
+- **I dag** (startskjerm): dagens middag, dagens aktiviteter (pågående merket «nå», ferdige tonet ned), de fem øverste på handlelisten og et blikk på i morgen. Alt kan legges til og krysses av direkte herfra.
 - **Handleliste** med to faner: *I butikk* og *Oda*. Trykk for å krysse av, «Fjern handlede» rydder.
 - **Autoutfylling**: forslag fra tidligere varer mens du skriver (mest brukte først, delt i familien). Trykk × på et forslag for å glemme det.
 - **Kalender**: felles avtaler per uke (tittel, dato, fra–til-klokkeslett). Skriv avtaler på vanlig norsk i hurtigfeltet, f.eks. «Fotball tir og tor 17:30-19 hver uke i 3 mnd» – appen viser tolkningen før du lagrer. Trykk hvor som helst på en dag for å fylle ut skjema. Avtaler kan gjentas hver dag, hver uke eller annenhver uke (på valgte ukedager), hver måned eller hvert år – i 1, 3 eller 6 måneder, eller for alltid. Kan også abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>/kalender.ics`).

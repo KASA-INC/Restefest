@@ -16,7 +16,7 @@ const store = {
 let code = null;
 let state = { items: [], menu: {}, events: [], history: {} };
 let list = store.get("list") || "butikk";
-let view = store.get("view") || "list";
+let view = "home"; // appen åpner alltid på startskjermen
 // Ukemenyen viser inneværende uke mandag–torsdag. Fra fredag kl. 00.00
 // (da bestilles Oda) viser den neste uke.
 const menuBase = () => (new Date().getDay() + 6) % 7 >= 4 ? 1 : 0;
@@ -141,8 +141,8 @@ document.addEventListener("visibilitychange", () => {
     // Har det blitt fredag (eller ny uke) mens appen lå i bakgrunnen? Hopp til riktig uke.
     if (weekOffset === shownBase && menuBase() !== shownBase) {
       weekOffset = shownBase = menuBase();
-      renderMenu();
     }
+    if (code) render();
   }
 });
 window.addEventListener("online", () => { retry = 0; connect(); });
@@ -151,14 +151,17 @@ window.addEventListener("online", () => { retry = 0; connect(); });
 function showView(v) {
   view = v;
   store.set("view", v);
+  $("#view-home").hidden = v !== "home";
   $("#view-list").hidden = v !== "list";
   $("#view-menu").hidden = v !== "menu";
   $("#view-cal").hidden = v !== "cal";
-  $("#title").textContent = { list: "Handleliste", menu: "Ukemeny", cal: "Kalender" }[v];
+  $("#title").textContent = { home: greeting(), list: "Handleliste", menu: "Ukemeny", cal: "Kalender" }[v];
+  window.scrollTo(0, 0);
   document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
 }
 
 function render() {
+  renderHome();
   renderList();
   renderMenu();
   renderCal();
@@ -174,8 +177,13 @@ function itemEl(it) {
   btn.querySelector(".txt").textContent = it.text;
   btn.onclick = () => {
     it.done = !it.done; // umiddelbar respons lokalt
-    renderList();
+    render();
     send({ t: "toggle", id: it.id, done: it.done });
+    if (it.done) toast(`«${it.text}» er handlet`, "Angre", () => {
+      it.done = false;
+      render();
+      send({ t: "toggle", id: it.id, done: false });
+    });
   };
   const del = document.createElement("button");
   del.className = "del";
@@ -183,8 +191,9 @@ function itemEl(it) {
   del.innerHTML = icon("close");
   del.onclick = () => {
     state.items = state.items.filter((i) => i.id !== it.id);
-    renderList();
+    render();
     send({ t: "del", id: it.id });
+    toast(`«${it.text}» er slettet`, "Angre", () => addItem(it.text, it.list));
   };
   li.append(btn, del);
   return li;
@@ -205,45 +214,32 @@ function renderList() {
   $("#empty").hidden = mine.length > 0;
   $("#odaLink").hidden = list !== "oda";
   $("#addInput").placeholder = list === "oda" ? "Legg til på Oda-listen…" : "Legg til vare…";
-  renderSuggest();
+  listAdder.refresh();
 }
 
 // Legg til vare. Står den allerede på listen, gjøres ingenting;
 // er den krysset av, hentes den tilbake i stedet for å lage en kopi.
-function addItem(raw) {
+function addItem(raw, l = list) {
   const text = raw.trim();
   if (!text) return;
   const key = text.toLowerCase();
-  const existing = state.items.find((i) => i.list === list && i.text.toLowerCase() === key);
+  const existing = state.items.find((i) => i.list === l && i.text.toLowerCase() === key);
   if (existing && !existing.done) { toast(`«${existing.text}» står allerede på listen`); return; }
   if (existing) {
     existing.done = false;
-    renderList();
+    render();
     send({ t: "toggle", id: existing.id, done: false });
     return;
   }
   // Bruk skrivemåten fra historikken ("melk" -> "Melk").
-  send({ t: "add", list, text: state.history?.[key]?.text || text });
+  send({ t: "add", list: l, text: state.history?.[key]?.text || text });
 }
-
-function resetInput() {
-  const inp = $("#addInput");
-  inp.value = "";
-  inp.focus();
-  renderSuggest();
-}
-
-$("#addForm").onsubmit = (e) => {
-  e.preventDefault();
-  addItem($("#addInput").value);
-  resetInput();
-};
 
 // ---------- Autoutfylling ----------
-function suggestions(q) {
+function suggestions(q, l) {
   q = q.trim().toLowerCase();
   if (!q) return [];
-  const onList = new Set(state.items.filter((i) => i.list === list && !i.done).map((i) => i.text.toLowerCase()));
+  const onList = new Set(state.items.filter((i) => i.list === l && !i.done).map((i) => i.text.toLowerCase()));
   const hits = [];
   for (const [key, h] of Object.entries(state.history || {})) {
     if (onList.has(key)) continue;
@@ -252,44 +248,53 @@ function suggestions(q) {
     else if (key.split(/[\s-]+/).some((w) => w.startsWith(q))) rank = 1;
     else if (q.length >= 3 && key.includes(q)) rank = 2;
     else continue;
-    hits.push({ ...h, rank, same: h.list === list ? 0 : 1 });
+    hits.push({ ...h, rank, same: h.list === l ? 0 : 1 });
   }
   hits.sort((a, b) => a.rank - b.rank || a.same - b.same || b.n - a.n || b.ts - a.ts);
   return hits.slice(0, 6);
 }
 
-function renderSuggest() {
-  const hits = suggestions($("#addInput").value);
-  $("#suggest").replaceChildren(...hits.map((h) => {
-    const li = document.createElement("li");
-    const pick = document.createElement("button");
-    pick.type = "button";
-    pick.className = "pick";
-    pick.textContent = h.text;
-    pick.onclick = () => { addItem(h.text); resetInput(); };
-    const forget = document.createElement("button");
-    forget.type = "button";
-    forget.className = "forget";
-    forget.innerHTML = icon("close", "i sm");
-    forget.setAttribute("aria-label", `Glem «${h.text}»`);
-    forget.onclick = () => {
-      delete state.history[h.text.toLowerCase()];
-      renderSuggest();
-      send({ t: "forget", text: h.text });
-    };
-    // Hindre at tastaturet lukkes når man trykker på et forslag.
-    for (const b of [pick, forget]) b.onpointerdown = (e) => e.preventDefault();
-    li.append(pick, forget);
-    return li;
-  }));
+// Kobler et «legg til vare»-felt med forslag. Brukes både i handlelisten og på startskjermen.
+function wireAdd(formSel, inputSel, suggestSel) {
+  const input = $(inputSel);
+  const reset = () => { input.value = ""; input.focus(); refresh(); };
+  function refresh() {
+    const hits = suggestions(input.value, list);
+    $(suggestSel).replaceChildren(...hits.map((h) => {
+      const li = document.createElement("li");
+      const pick = document.createElement("button");
+      pick.type = "button";
+      pick.className = "pick";
+      pick.textContent = h.text;
+      pick.onclick = () => { addItem(h.text); reset(); };
+      const forget = document.createElement("button");
+      forget.type = "button";
+      forget.className = "forget";
+      forget.innerHTML = icon("close", "i sm");
+      forget.setAttribute("aria-label", `Glem «${h.text}»`);
+      forget.onclick = () => {
+        delete state.history[h.text.toLowerCase()];
+        refresh();
+        send({ t: "forget", text: h.text });
+      };
+      // Hindre at tastaturet lukkes når man trykker på et forslag.
+      for (const b of [pick, forget]) b.onpointerdown = (e) => e.preventDefault();
+      li.append(pick, forget);
+      return li;
+    }));
+  }
+  input.oninput = refresh;
+  $(formSel).onsubmit = (e) => { e.preventDefault(); addItem(input.value); reset(); };
+  return { refresh };
 }
-$("#addInput").oninput = renderSuggest;
+const listAdder = wireAdd("#addForm", "#addInput", "#suggest");
+
 document.querySelectorAll(".seg button").forEach((b) => {
-  b.onclick = () => { list = b.dataset.list; store.set("list", list); renderList(); };
+  b.onclick = () => { list = b.dataset.list; store.set("list", list); render(); };
 });
 $("#clearBtn").onclick = () => {
   state.items = state.items.filter((i) => !(i.list === list && i.done));
-  renderList();
+  render();
   send({ t: "clear", list });
 };
 
@@ -354,18 +359,7 @@ function renderMenu() {
       const dish = card.querySelector(".dish");
       const link = card.querySelector(".link");
       let timer;
-      const save = () => {
-        clearTimeout(timer);
-        const entry = { dish: dish.value.trim(), link: link.value.trim() };
-        const wk = (state.menu[key] ||= {});
-        if (entry.dish || entry.link) wk[i] = entry; else delete wk[i];
-        send({ t: "menu", week: key, day: i, ...entry });
-      };
-      const later = () => { clearTimeout(timer); timer = setTimeout(save, 600); };
-      dish.oninput = later; link.oninput = later;
-      dish.onchange = save; link.onchange = save;
-      dish.onkeydown = (e) => { if (e.key === "Enter") link.focus(); };
-      link.onkeydown = (e) => { if (e.key === "Enter") link.blur(); };
+      wireDinner(dish, link, () => ({ key, day: i }));
       return card;
     });
     $("#days").replaceChildren(...cards);
@@ -379,16 +373,35 @@ function renderMenu() {
       li.append(ev.title);
       return li;
     }));
-    const entry = week[i] || { dish: "", link: "" };
-    const dish = card.querySelector(".dish");
-    const link = card.querySelector(".link");
-    if (document.activeElement !== dish) dish.value = entry.dish || "";
-    if (document.activeElement !== link) link.value = entry.link || "";
-    const a = card.querySelector(".recipe");
-    const href = entry.link ? (/^https?:\/\//i.test(entry.link) ? entry.link : "https://" + entry.link) : "";
-    a.hidden = !href;
-    if (href) a.href = href;
+    fillDinner(card.querySelector(".dish"), card.querySelector(".link"), card.querySelector(".recipe"), week[i]);
   });
+}
+
+// Lagrer middag for én dag. Brukes av ukemenyen og startskjermen.
+function wireDinner(dish, link, where) {
+  let timer;
+  const save = () => {
+    clearTimeout(timer);
+    const { key, day } = where();
+    const entry = { dish: dish.value.trim(), link: link.value.trim() };
+    const wk = (state.menu[key] ||= {});
+    if (entry.dish || entry.link) wk[day] = entry; else delete wk[day];
+    send({ t: "menu", week: key, day, ...entry });
+  };
+  const later = () => { clearTimeout(timer); timer = setTimeout(save, 600); };
+  dish.oninput = later; link.oninput = later;
+  dish.onchange = save; link.onchange = save;
+  dish.onkeydown = (e) => { if (e.key === "Enter") link.focus(); };
+  link.onkeydown = (e) => { if (e.key === "Enter") link.blur(); };
+}
+
+// Viser lagret middag i feltene uten å forstyrre den som skriver.
+function fillDinner(dish, link, a, entry = {}) {
+  if (document.activeElement !== dish) dish.value = entry.dish || "";
+  if (document.activeElement !== link) link.value = entry.link || "";
+  const href = entry.link ? (/^https?:\/\//i.test(entry.link) ? entry.link : "https://" + entry.link) : "";
+  a.hidden = !href;
+  if (href) a.href = href;
 }
 
 $("#prevWeek").onclick = () => { weekOffset--; renderMenu(); };
@@ -401,6 +414,30 @@ const eventsOn = (iso) => (state.events || []).filter((e) => occursOn(e, iso))
   .sort((a, b) => (a.time || "").localeCompare(b.time || "") || a.ts - b.ts);
 
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// Én avtale i en liste. Med `nowMin` (minutter siden midnatt) markeres
+// det som pågår nå, og det som er ferdig tones ned.
+function evItem(ev, nowMin = null) {
+  const li = document.createElement("li");
+  const b = document.createElement("button");
+  b.className = "ev";
+  b.innerHTML = '<span class="ev-time"></span><span class="ev-title"></span>';
+  const tm = b.querySelector(".ev-time");
+  tm.textContent = ev.time || "Hele dagen";
+  if (ev.end) { const sm = document.createElement("small"); sm.textContent = "–" + ev.end; tm.append(sm); }
+  const title = b.querySelector(".ev-title");
+  title.textContent = ev.title;
+  if (ev.repeat) title.insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
+  if (nowMin !== null && ev.time) {
+    const start = toMin(ev.time);
+    const end = ev.end ? toMin(ev.end) : start + 60;
+    if (nowMin >= end) b.classList.add("past");
+    else if (nowMin >= start) title.insertAdjacentHTML("beforeend", '<span class="now">nå</span>');
+  }
+  b.onclick = () => openEvent(ev);
+  li.append(b);
+  return li;
+}
 
 function renderCal() {
   const { monday } = weekHeader(calOffset, "#calLabel", "#calDates", "#calThis");
@@ -416,20 +453,7 @@ function renderCal() {
     card.querySelector(".day-name").textContent = name;
     card.querySelector(".muted").textContent = fmt(date);
     card.onclick = (e) => { if (!e.target.closest(".ev")) openEvent({ date: iso }); };
-    card.querySelector(".evs").replaceChildren(...eventsOn(iso).map((ev) => {
-      const li = document.createElement("li");
-      const b = document.createElement("button");
-      b.className = "ev";
-      b.innerHTML = '<span class="ev-time"></span><span class="ev-title"></span>';
-      const tm = b.querySelector(".ev-time");
-      tm.textContent = ev.time || "Hele dagen";
-      if (ev.end) { const sm = document.createElement("small"); sm.textContent = "–" + ev.end; tm.append(sm); }
-      b.querySelector(".ev-title").textContent = ev.title;
-      if (ev.repeat) b.querySelector(".ev-title").insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
-      b.onclick = () => openEvent(ev);
-      li.append(b);
-      return li;
-    }));
+    card.querySelector(".evs").replaceChildren(...eventsOn(iso).map((ev) => evItem(ev)));
     return card;
   });
   $("#calDays").replaceChildren(...cards);
@@ -565,12 +589,6 @@ const SHORT_DAYS = ["man", "tir", "ons", "tor", "fre", "lør", "søn"];
 const FREQ_TXT = { daily: "Hver dag", weekly: "Hver uke", biweekly: "Annenhver uke", monthly: "Hver måned", yearly: "Hvert år" };
 const DUR_TXT = { "1m": "i 1 mnd", "3m": "i 3 mnd", "6m": "i 6 mnd" };
 
-function quickParse() {
-  const today = new Date();
-  const from = calOffset > 0 ? isoDate(mondayOf(calOffset)) : isoDate(today);
-  return parseQuick($("#qaInput").value, { today, from });
-}
-
 function dayLabel(iso) {
   const d = new Date(iso + "T12:00:00");
   const diff = Math.round((d - new Date(isoDate(new Date()) + "T12:00:00")) / 864e5);
@@ -579,78 +597,171 @@ function dayLabel(iso) {
   return (rel ? rel + ", " : name[0].toUpperCase() + name.slice(1) + " ") + fmt(d) + (d.getFullYear() !== new Date().getFullYear() ? " " + d.getFullYear() : "");
 }
 
-// Viser hvordan teksten blir tolket – før man trykker Enter.
-function renderQuick() {
-  const text = $("#qaInput").value.trim();
-  const ev = text ? quickParse() : null;
-  $("#qaHelp").hidden = !!text || document.activeElement !== $("#qaInput");
-  $("#qaPreview").hidden = !ev;
-  if (!ev) return;
-  const parts = [];
-  const add = (ic, txt) => {
-    const span = document.createElement("span");
-    span.innerHTML = icon(ic, "i sm");
-    span.append(txt);
-    parts.push(span);
-  };
-  const b = document.createElement("b");
-  b.textContent = ev.title;
-  parts.push(b);
-  const dl = dayLabel(ev.date);
-  add("calendar", ev.repeat ? "Fra " + dl[0].toLowerCase() + dl.slice(1) : dl);
-  add("clock", ev.time ? ev.time + (ev.end ? "–" + ev.end : "") : "Hele dagen");
-  if (ev.repeat) {
-    let r = FREQ_TXT[ev.repeat.freq];
-    if (ev.repeat.days) r += ": " + ev.repeat.days.map((d) => SHORT_DAYS[d]).join(", ");
-    if (DUR_TXT[ev.repeat.dur]) r += " " + DUR_TXT[ev.repeat.dur];
-    add("repeat", r);
-  }
-  $("#qaSum").replaceChildren(...parts);
-}
-
 // Hvilken uke (relativt til denne) en dato ligger i.
 const weekOffsetOf = (iso) => Math.round((new Date(iso + "T12:00:00") - mondayOf(0)) / (7 * 864e5) - 0.49);
 
-$("#qaInput").oninput = renderQuick;
-$("#qaInput").onfocus = renderQuick;
-$("#qaInput").onblur = () => setTimeout(renderQuick, 150);
-$("#qaForm").onsubmit = (e) => {
-  e.preventDefault();
-  const ev = quickParse();
-  if (!ev) { if ($("#qaInput").value.trim()) toast("Skriv hva avtalen gjelder"); return; }
-  send({ t: "evAdd", ...ev });
-  calOffset = weekOffsetOf(ev.date);
-  renderCal();
-  toast(`Lagt til: ${ev.title}, ${dayLabel(ev.date).toLowerCase()}`);
-  $("#qaInput").value = "";
-  renderQuick();
-};
-$("#qaMore").onclick = () => {
-  const ev = quickParse();
-  if (ev) openEvent(ev);
-};
-document.querySelectorAll("#qaHelp .ex").forEach((ex) => {
-  ex.onpointerdown = (e) => e.preventDefault();
-  ex.onclick = () => { $("#qaInput").value = ex.textContent; renderQuick(); $("#qaInput").focus(); };
+// Kobler et hurtigfelt for avtaler: tolker teksten, viser tolkningen og lagrer på Enter.
+// `from` gir datoen ukedager regnes fra; `after` kjøres når avtalen er lagt til.
+const quickInputs = [];
+function wireQuick({ form, input, preview, sum, more, help, from, after }) {
+  const inp = $(input);
+  quickInputs.push(inp);
+  const parse = () => parseQuick(inp.value, { today: new Date(), from: from() });
+  function refresh() {
+    const text = inp.value.trim();
+    const ev = text ? parse() : null;
+    if (help) $(help).hidden = !!text || document.activeElement !== inp;
+    $(preview).hidden = !ev;
+    if (!ev) return;
+    const parts = [];
+    const add = (ic, txt) => {
+      const span = document.createElement("span");
+      span.innerHTML = icon(ic, "i sm");
+      span.append(txt);
+      parts.push(span);
+    };
+    const b = document.createElement("b");
+    b.textContent = ev.title;
+    parts.push(b);
+    const dl = dayLabel(ev.date);
+    add("calendar", ev.repeat ? "Fra " + dl[0].toLowerCase() + dl.slice(1) : dl);
+    add("clock", ev.time ? ev.time + (ev.end ? "–" + ev.end : "") : "Hele dagen");
+    if (ev.repeat) {
+      let r = FREQ_TXT[ev.repeat.freq];
+      if (ev.repeat.days) r += ": " + ev.repeat.days.map((d) => SHORT_DAYS[d]).join(", ");
+      if (DUR_TXT[ev.repeat.dur]) r += " " + DUR_TXT[ev.repeat.dur];
+      add("repeat", r);
+    }
+    $(sum).replaceChildren(...parts);
+  }
+  inp.oninput = refresh;
+  inp.onfocus = refresh;
+  inp.onblur = () => setTimeout(refresh, 150);
+  $(form).onsubmit = (e) => {
+    e.preventDefault();
+    const ev = parse();
+    if (!ev) { if (inp.value.trim()) toast("Skriv hva avtalen gjelder"); return; }
+    send({ t: "evAdd", ...ev });
+    toast(`Lagt til: ${ev.title}, ${dayLabel(ev.date).toLowerCase()}`);
+    inp.value = "";
+    refresh();
+    after(ev);
+  };
+  $(more).onclick = () => {
+    const ev = parse();
+    if (ev) openEvent(ev);
+  };
+  if (help) document.querySelectorAll(help + " .ex").forEach((ex) => {
+    ex.onpointerdown = (e) => e.preventDefault();
+    ex.onclick = () => { inp.value = ex.textContent; refresh(); inp.focus(); };
+  });
+  inp.refreshQuick = refresh;
+}
+
+wireQuick({
+  form: "#qaForm", input: "#qaInput", preview: "#qaPreview", sum: "#qaSum", more: "#qaMore", help: "#qaHelp",
+  from: () => (calOffset > 0 ? isoDate(mondayOf(calOffset)) : isoDate(new Date())),
+  after: (ev) => { calOffset = weekOffsetOf(ev.date); renderCal(); },
 });
-// Lagring fra «Juster» tømmer hurtigfeltet.
+
+// Lagring fra «Juster» tømmer hurtigfeltet det kom fra.
 $("#evForm").addEventListener("submit", () => {
-  if (!editing && $("#qaInput").value) { $("#qaInput").value = ""; renderQuick(); }
+  if (editing) return;
+  for (const inp of quickInputs) if (inp.value) { inp.value = ""; inp.refreshQuick(); }
 });
 
 $("#calPrev").onclick = () => { calOffset--; renderCal(); };
 $("#calNext").onclick = () => { calOffset++; renderCal(); };
 $("#calThis").onclick = () => { calOffset = 0; renderCal(); };
 
+// ---------- Startskjerm ----------
+const MONTHS_FULL = ["januar", "februar", "mars", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "desember"];
+function greeting() {
+  const h = new Date().getHours();
+  return h < 5 ? "God natt" : h < 10 ? "God morgen" : h < 17 ? "God dag" : h < 23 ? "God kveld" : "God natt";
+}
+
+// Dagens middag lagres alltid på dagens dato (uavhengig av hvilken uke ukemenyen viser).
+const todaySlot = () => { const d = new Date(); return { key: isoWeek(d).key, day: (d.getDay() + 6) % 7 }; };
+wireDinner($("#hDish"), $("#hLink"), todaySlot);
+const homeAdder = wireAdd("#hAddForm", "#hAddInput", "#hSuggest");
+wireQuick({
+  form: "#hqaForm", input: "#hqaInput", preview: "#hqaPreview", sum: "#hqaSum", more: "#hqaMore",
+  from: () => isoDate(new Date()),
+  after: (ev) => { calOffset = weekOffsetOf(ev.date); render(); },
+});
+document.querySelectorAll("[data-hlist]").forEach((b) => {
+  b.onclick = () => { list = b.dataset.hlist; store.set("list", list); render(); };
+});
+document.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => showView(b.dataset.go)));
+
+function renderHome() {
+  const now = new Date();
+  const { key, day } = todaySlot();
+  if (view === "home") $("#title").textContent = greeting();
+  $("#homeDate").textContent = `${DAYS[day]} ${now.getDate()}. ${MONTHS_FULL[now.getMonth()]} · uke ${isoWeek(now).w}`;
+
+  // Middag i dag
+  $("#hDish").placeholder = day === 4 ? "Taco" : "Hva blir det til middag?";
+  fillDinner($("#hDish"), $("#hLink"), $("#hRecipe"), state.menu[key]?.[day]);
+
+  // Aktiviteter i dag
+  const evs = eventsOn(isoDate(now));
+  $("#hEvents").replaceChildren(...evs.map((ev) => evItem(ev, now.getHours() * 60 + now.getMinutes())));
+  $("#hNoEvents").hidden = evs.length > 0;
+
+  // De fem øverste på handlelisten
+  document.querySelectorAll("[data-hlist]").forEach((b) => b.classList.toggle("active", b.dataset.hlist === list));
+  for (const l of ["butikk", "oda"]) {
+    const n = state.items.filter((i) => i.list === l && !i.done).length;
+    $(`[data-hcount="${l}"]`).textContent = n ? n : "";
+  }
+  const todo = state.items.filter((i) => i.list === list && !i.done);
+  $("#hItems").replaceChildren(...todo.slice(0, 5).map(itemEl));
+  $("#hEmpty").hidden = todo.length > 0;
+  $("#hEmpty").textContent = list === "oda" ? "Oda-listen er tom." : "Handlelisten er tom.";
+  $("#hMore").hidden = todo.length <= 5;
+  $("#hMore").textContent = `Se alle ${todo.length} varer`;
+  $("#hAddInput").placeholder = list === "oda" ? "Legg til på Oda-listen…" : "Legg til vare…";
+  homeAdder.refresh();
+
+  // I morgen: middag og avtaler
+  const tm = new Date(now); tm.setDate(now.getDate() + 1);
+  const tmDinner = state.menu[isoWeek(tm).key]?.[(tm.getDay() + 6) % 7]?.dish;
+  const lines = [];
+  if (tmDinner) {
+    const li = document.createElement("li");
+    li.innerHTML = icon("chef-recipe-book", "i sm");
+    li.append(" " + tmDinner);
+    lines.push(li);
+  }
+  for (const ev of eventsOn(isoDate(tm))) {
+    const li = document.createElement("li");
+    if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time + (ev.end ? "–" + ev.end : ""); li.append(b); }
+    li.append(ev.title);
+    lines.push(li);
+  }
+  $("#hTomorrow").replaceChildren(...lines);
+  $("#hTomorrowCard").hidden = !lines.length;
+}
+
+// Hold «nå»-merking og hilsen oppdatert mens startskjermen er åpen.
+setInterval(() => { if (view === "home" && code) renderHome(); }, 60000);
+
 // ---------- Navigasjon og innstillinger ----------
 document.querySelectorAll(".tabbar button").forEach((b) => (b.onclick = () => showView(b.dataset.view)));
 
-function toast(msg) {
+// Kort beskjed nederst. Med `action` får den en knapp, f.eks. «Angre».
+function toast(msg, action, onAction) {
   const t = $("#toast");
-  t.textContent = msg;
+  $("#toastMsg").textContent = msg;
+  const btn = $("#toastAction");
+  btn.hidden = !action;
+  btn.textContent = action || "";
+  btn.onclick = () => { t.hidden = true; onAction?.(); };
   t.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (t.hidden = true), 2200);
+  toast.timer = setTimeout(() => (t.hidden = true), action ? 4500 : 2200);
 }
 
 async function copy(text, msg) {
