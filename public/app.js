@@ -415,26 +415,26 @@ function renderMenu() {
     const cards = DAYS.map((name, i) => {
       const date = new Date(monday); date.setDate(monday.getDate() + i);
       const card = document.createElement("div");
-      card.className = "day";
+      card.className = "mrow";
       card.innerHTML = `
-        <div class="day-head"><span class="day-name"></span><span class="muted small"></span></div>
-        <ul class="day-evs"></ul>
-        <input class="dish" placeholder="Rett" maxlength="200" enterkeyhint="next">
-        <input class="link" placeholder="Link til oppskrift" type="url" inputmode="url" autocapitalize="off" maxlength="1000" enterkeyhint="done">
-        <a class="recipe" target="_blank" rel="noopener" hidden>Åpne oppskrift ${icon("external-link", "i sm")}</a>`;
-      card.querySelector(".day-name").textContent = name;
+        <div class="mlabel"><b></b><span></span></div>
+        <div class="mmain">
+          <div class="dinner">
+            <input class="dish" placeholder="Rett" maxlength="200" enterkeyhint="done">
+            <button type="button" class="rlink">${icon("chef-recipe-book")}</button>
+          </div>
+          <ul class="day-evs"></ul>
+        </div>`;
+      card.querySelector(".mlabel b").textContent = name.slice(0, 3);
+      card.querySelector(".mlabel span").textContent = fmt(date);
       if (i === 4) card.querySelector(".dish").placeholder = "Taco"; // fredagstaco
-      card.querySelector(".muted").textContent = fmt(date);
-      const dish = card.querySelector(".dish");
-      const link = card.querySelector(".link");
-      let timer;
-      wireDinner(dish, link, () => ({ key, day: i }));
+      wireDinner(card.querySelector(".dish"), card.querySelector(".rlink"), () => ({ key, day: i }));
       return card;
     });
     $("#days").replaceChildren(...cards);
   }
 
-  $("#days").querySelectorAll(".day").forEach((card, i) => {
+  $("#days").querySelectorAll(".mrow").forEach((card, i) => {
     const date = new Date(monday); date.setDate(monday.getDate() + i);
     card.querySelector(".day-evs").replaceChildren(...eventsOn(isoDate(date)).map((ev) => {
       const li = document.createElement("li");
@@ -442,35 +442,72 @@ function renderMenu() {
       li.append(ev.title);
       return li;
     }));
-    fillDinner(card.querySelector(".dish"), card.querySelector(".link"), card.querySelector(".recipe"), week[i]);
+    fillDinner(card.querySelector(".dish"), card.querySelector(".rlink"), week[i]);
   });
 }
 
-// Lagrer middag for én dag. Brukes av ukemenyen og startskjermen.
-function wireDinner(dish, link, where) {
+// Middag for én dag: et felt for retten og en oppskriftsknapp. Brukes av ukemenyen og startskjermen.
+//  - Grå knapp (ingen oppskrift): trykk for å lime inn en lenke.
+//  - Grønn knapp: trykk for å åpne oppskriften, hold inne for å endre eller fjerne lenken.
+//  - Limer man en lenke inn i rettfeltet, flyttes den automatisk til knappen.
+const URL_RE = /(?:https?:\/\/|www\.)\S+/i;
+const normUrl = (u) => (u && !/^https?:\/\//i.test(u) ? "https://" + u : u);
+
+function wireDinner(dish, btn, where) {
   let timer;
-  const save = () => {
+  const current = () => { const { key, day } = where(); return state.menu[key]?.[day] || {}; };
+  const save = (link = current().link || "") => {
     clearTimeout(timer);
     const { key, day } = where();
-    const entry = { dish: dish.value.trim(), link: link.value.trim() };
+    const entry = { dish: dish.value.trim(), link };
     const wk = (state.menu[key] ||= {});
     if (entry.dish || entry.link) wk[day] = entry; else delete wk[day];
     send({ t: "menu", week: key, day, ...entry });
+    fillDinner(dish, btn, wk[day]);
   };
-  const later = () => { clearTimeout(timer); timer = setTimeout(save, 600); };
-  dish.oninput = later; link.oninput = later;
-  dish.onchange = save; link.onchange = save;
-  dish.onkeydown = (e) => { if (e.key === "Enter") link.focus(); };
-  link.onkeydown = (e) => { if (e.key === "Enter") link.blur(); };
+  const editLink = () => {
+    const now = current().link || "";
+    const v = prompt(now ? "Endre lenken til oppskriften (tøm for å fjerne):" : "Lim inn lenke til oppskriften:", now);
+    if (v === null) return;
+    save(normUrl(v.trim()));
+  };
+  dish.oninput = () => {
+    const m = dish.value.match(URL_RE);
+    if (m) {
+      dish.value = dish.value.replace(m[0], "").replace(/\s+/g, " ").trim();
+      save(normUrl(m[0]));
+      toast("Lenken er lagt på oppskriftsknappen");
+      return;
+    }
+    clearTimeout(timer);
+    timer = setTimeout(() => save(), 600);
+  };
+  dish.onchange = () => save();
+  dish.onkeydown = (e) => { if (e.key === "Enter") dish.blur(); };
+
+  // Trykk = åpne (eller legg til), hold inne = endre.
+  let pressTimer, longPressed = false;
+  btn.onpointerdown = () => {
+    longPressed = false;
+    pressTimer = setTimeout(() => { longPressed = true; if (current().link) editLink(); }, 550);
+  };
+  btn.onpointerup = btn.onpointerleave = btn.onpointercancel = () => clearTimeout(pressTimer);
+  btn.oncontextmenu = (e) => e.preventDefault();
+  btn.onclick = () => {
+    if (longPressed) return;
+    const link = current().link;
+    if (link) window.open(normUrl(link), "_blank", "noopener");
+    else editLink();
+  };
 }
 
-// Viser lagret middag i feltene uten å forstyrre den som skriver.
-function fillDinner(dish, link, a, entry = {}) {
+// Viser lagret middag uten å forstyrre den som skriver.
+function fillDinner(dish, btn, entry = {}) {
   if (document.activeElement !== dish) dish.value = entry.dish || "";
-  if (document.activeElement !== link) link.value = entry.link || "";
-  const href = entry.link ? (/^https?:\/\//i.test(entry.link) ? entry.link : "https://" + entry.link) : "";
-  a.hidden = !href;
-  if (href) a.href = href;
+  const has = !!entry.link;
+  btn.classList.toggle("on", has);
+  btn.setAttribute("aria-label", has ? "Åpne oppskrift (hold inne for å endre)" : "Legg til lenke til oppskrift");
+  btn.title = has ? entry.link : "Legg til oppskrift";
 }
 
 $("#prevWeek").onclick = () => { weekOffset--; renderMenu(); };
@@ -767,7 +804,7 @@ function greeting() {
 
 // Dagens middag lagres alltid på dagens dato (uavhengig av hvilken uke ukemenyen viser).
 const todaySlot = () => { const d = new Date(); return { key: isoWeek(d).key, day: (d.getDay() + 6) % 7 }; };
-wireDinner($("#hDish"), $("#hLink"), todaySlot);
+wireDinner($("#hDish"), $("#hRecipe"), todaySlot);
 const homeAdder = wireAdd("#hAddForm", "#hAddInput", "#hSuggest", () => hList);
 wireQuick({
   form: "#hqaForm", input: "#hqaInput", preview: "#hqaPreview", sum: "#hqaSum", more: "#hqaMore",
@@ -788,7 +825,7 @@ function renderHome() {
 
   // Middag i dag
   $("#hDish").placeholder = day === 4 ? "Taco" : "Hva blir det til middag?";
-  fillDinner($("#hDish"), $("#hLink"), $("#hRecipe"), state.menu[key]?.[day]);
+  fillDinner($("#hDish"), $("#hRecipe"), state.menu[key]?.[day]);
 
   // Aktiviteter i dag
   const evs = eventsOn(isoDate(now));

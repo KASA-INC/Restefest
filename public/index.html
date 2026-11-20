@@ -78,9 +78,10 @@
             <h2><svg class="i" aria-hidden="true"><use href="#i-chef-recipe-book"/></svg> Middag i dag</h2>
             <button type="button" class="link-btn" data-go="menu">Ukemeny</button>
           </div>
-          <input id="hDish" class="dish" placeholder="Hva blir det til middag?" maxlength="200" enterkeyhint="next">
-          <input id="hLink" class="link" placeholder="Link til oppskrift" type="url" inputmode="url" autocapitalize="off" maxlength="1000" enterkeyhint="done">
-          <a id="hRecipe" class="recipe" target="_blank" rel="noopener" hidden>Åpne oppskrift <svg class="i sm" aria-hidden="true"><use href="#i-external-link"/></svg></a>
+          <div class="dinner">
+            <input id="hDish" class="dish" placeholder="Hva blir det til middag?" maxlength="200" enterkeyhint="done">
+            <button type="button" id="hRecipe" class="rlink"><svg class="i" aria-hidden="true"><use href="#i-chef-recipe-book"/></svg></button>
+          </div>
         </section>
 
         <section class="card">
