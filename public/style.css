@@ -127,6 +127,12 @@ main { padding: 0 16px; }
 .add { display: flex; gap: 8px; margin-bottom: 14px; }
 .add .primary { width: 50px; padding: 0; font-size: 26px; flex: none; }
 
+.suggest { list-style: none; margin: -6px 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.suggest:empty { display: none; }
+.suggest li { display: flex; align-items: center; background: var(--accent-soft); border-radius: 999px; }
+.suggest .pick { background: none; border: 0; padding: 8px 4px 8px 14px; font-weight: 500; }
+.suggest .forget { background: none; border: 0; padding: 8px 12px 8px 6px; color: var(--muted); font-size: 18px; line-height: 1; }
+
 .items { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
 .items:empty { display: none; }
 .items li { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }

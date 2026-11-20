@@ -189,17 +189,85 @@ function renderList() {
   $("#empty").hidden = mine.length > 0;
   $("#odaLink").hidden = list !== "oda";
   $("#addInput").placeholder = list === "oda" ? "Legg til på Oda-listen…" : "Legg til vare…";
+  renderSuggest();
+}
+
+// Legg til vare. Står den allerede på listen, gjøres ingenting;
+// er den krysset av, hentes den tilbake i stedet for å lage en kopi.
+function addItem(raw) {
+  const text = raw.trim();
+  if (!text) return;
+  const key = text.toLowerCase();
+  const existing = state.items.find((i) => i.list === list && i.text.toLowerCase() === key);
+  if (existing && !existing.done) { toast(`«${existing.text}» står allerede på listen`); return; }
+  if (existing) {
+    existing.done = false;
+    renderList();
+    send({ t: "toggle", id: existing.id, done: false });
+    return;
+  }
+  // Bruk skrivemåten fra historikken ("melk" -> "Melk").
+  send({ t: "add", list, text: state.history?.[key]?.text || text });
+}
+
+function resetInput() {
+  const inp = $("#addInput");
+  inp.value = "";
+  inp.focus();
+  renderSuggest();
 }
 
 $("#addForm").onsubmit = (e) => {
   e.preventDefault();
-  const inp = $("#addInput");
-  const text = inp.value.trim();
-  if (!text) return;
-  send({ t: "add", list, text });
-  inp.value = "";
-  inp.focus();
+  addItem($("#addInput").value);
+  resetInput();
 };
+
+// ---------- Autoutfylling ----------
+function suggestions(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  const onList = new Set(state.items.filter((i) => i.list === list && !i.done).map((i) => i.text.toLowerCase()));
+  const hits = [];
+  for (const [key, h] of Object.entries(state.history || {})) {
+    if (onList.has(key)) continue;
+    let rank;
+    if (key.startsWith(q)) rank = 0;
+    else if (key.split(/[\s-]+/).some((w) => w.startsWith(q))) rank = 1;
+    else if (q.length >= 3 && key.includes(q)) rank = 2;
+    else continue;
+    hits.push({ ...h, rank, same: h.list === list ? 0 : 1 });
+  }
+  hits.sort((a, b) => a.rank - b.rank || a.same - b.same || b.n - a.n || b.ts - a.ts);
+  return hits.slice(0, 6);
+}
+
+function renderSuggest() {
+  const hits = suggestions($("#addInput").value);
+  $("#suggest").replaceChildren(...hits.map((h) => {
+    const li = document.createElement("li");
+    const pick = document.createElement("button");
+    pick.type = "button";
+    pick.className = "pick";
+    pick.textContent = h.text;
+    pick.onclick = () => { addItem(h.text); resetInput(); };
+    const forget = document.createElement("button");
+    forget.type = "button";
+    forget.className = "forget";
+    forget.textContent = "×";
+    forget.setAttribute("aria-label", `Glem «${h.text}»`);
+    forget.onclick = () => {
+      delete state.history[h.text.toLowerCase()];
+      renderSuggest();
+      send({ t: "forget", text: h.text });
+    };
+    // Hindre at tastaturet lukkes når man trykker på et forslag.
+    for (const b of [pick, forget]) b.onpointerdown = (e) => e.preventDefault();
+    li.append(pick, forget);
+    return li;
+  }));
+}
+$("#addInput").oninput = renderSuggest;
 document.querySelectorAll(".seg button").forEach((b) => {
   b.onclick = () => { list = b.dataset.list; store.set("list", list); renderList(); };
 });

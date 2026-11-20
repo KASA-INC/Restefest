@@ -6,6 +6,7 @@ const LISTS = ["butikk", "oda"];
 const WEEK_RE = /^\d{4}-W\d{2}$/;
 const MAX_ITEMS = 500;
 const MAX_WEEKS = 60;
+const MAX_HISTORY = 400;
 
 const normCode = (s) => decodeURIComponent(s).normalize("NFC").trim().toLowerCase();
 
@@ -48,6 +49,11 @@ export class Family extends DurableObject {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     ctx.blockConcurrencyWhile(async () => {
       this.state = (await ctx.storage.get("state")) || { items: [], menu: {} };
+      if (!this.state.history) {
+        // Første gang: bygg historikk fra varene som allerede ligger inne.
+        this.state.history = {};
+        for (const it of this.state.items) this.remember(it.text, it.list, it.ts);
+      }
     });
   }
 
@@ -97,6 +103,13 @@ export class Family extends DurableObject {
         const text = str(msg.text, 200);
         if (!text || !LISTS.includes(msg.list) || st.items.length >= MAX_ITEMS) return false;
         st.items.push({ id: crypto.randomUUID(), text, list: msg.list, done: false, ts: Date.now() });
+        this.remember(text, msg.list);
+        return true;
+      }
+      case "forget": {
+        const key = str(msg.text, 200).toLowerCase();
+        if (!st.history[key]) return false;
+        delete st.history[key];
         return true;
       }
       case "toggle": {
@@ -139,6 +152,19 @@ export class Family extends DurableObject {
       }
     }
     return false;
+  }
+
+  // Husker tidligere varer for autoutfylling: antall ganger brukt, sist brukt og liste.
+  remember(text, list, ts = Date.now()) {
+    const h = this.state.history;
+    const key = text.toLowerCase();
+    const prev = h[key];
+    h[key] = { text, list, n: (prev?.n || 0) + 1, ts };
+    const keys = Object.keys(h);
+    if (keys.length > MAX_HISTORY) {
+      keys.sort((a, b) => h[a].n - h[b].n || h[a].ts - h[b].ts);
+      for (const k of keys.slice(0, keys.length - MAX_HISTORY)) delete h[k];
+    }
   }
 
   // RPC fra worker: lager iCalendar-feed av ukemenyen.
