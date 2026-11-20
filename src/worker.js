@@ -148,8 +148,11 @@ export class Family extends DurableObject {
         const date = str(msg.date, 10);
         const time = str(msg.time, 5);
         if (!title || !DATE_RE.test(date) || (time && !TIME_RE.test(time))) return false;
+        // Sluttid bare hvis det er en starttid og den er senere enn den.
+        let end = str(msg.end, 5);
+        if (!time || !TIME_RE.test(end) || end <= time) end = "";
         const repeat = cleanRepeat(msg.repeat, date);
-        const data = { title, date, time, ts: Date.now() };
+        const data = { title, date, time, end, ts: Date.now() };
         if (repeat) data.repeat = repeat;
         if (msg.t === "evEdit") {
           const ev = st.events.find((e) => e.id === msg.id);
@@ -245,15 +248,20 @@ export class Family extends DurableObject {
           allDay(ev.id, new Date(date + "T00:00:00Z"), ev.title, rule);
           continue;
         }
-        // Avtaler med klokkeslett varer én time som standard.
+        // Uten sluttid varer avtalen én time.
         const [h, mi] = ev.time.split(":").map(Number);
         const d = date.replace(/-/g, "");
         const pad = (n) => String(n).padStart(2, "0");
-        const endH = h + 1;
-        const endDate = endH === 24 ? ymd(new Date(new Date(date + "T00:00:00Z").getTime() + 864e5)) : d;
+        let endDate = d;
+        let endHm;
+        if (ev.end) endHm = ev.end.replace(":", "");
+        else if (h === 23) {
+          endDate = ymd(new Date(new Date(date + "T00:00:00Z").getTime() + 864e5));
+          endHm = `00${pad(mi)}`;
+        } else endHm = `${pad(h + 1)}${pad(mi)}`;
         lines.push("BEGIN:VEVENT", `UID:${ev.id}@${host}`, `DTSTAMP:${stamp}`,
           `DTSTART;TZID=Europe/Oslo:${d}T${pad(h)}${pad(mi)}00`,
-          `DTEND;TZID=Europe/Oslo:${endDate}T${pad(endH % 24)}${pad(mi)}00`,
+          `DTEND;TZID=Europe/Oslo:${endDate}T${endHm}00`,
           ...rule, `SUMMARY:${esc(ev.title)}`, "END:VEVENT");
       }
     }

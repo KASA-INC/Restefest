@@ -241,3 +241,24 @@ dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .day-evs { list-style: none; margin: -4px 0 0; padding: 0; font-size: 13px; color: var(--muted); display: grid; gap: 1px; }
 .day-evs:empty { display: none; }
 .day-evs b { font-weight: 600; color: var(--accent); margin-right: 4px; font-variant-numeric: tabular-nums; }
+
+/* Hurtig-innlegging i kalenderen */
+.qa { margin: 4px 0 8px; }
+.qa-preview {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 12px;
+  background: var(--accent-soft); border-radius: 12px; padding: 8px 8px 8px 12px;
+}
+.qa-sum { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; }
+.qa-sum b { font-size: 15px; width: 100%; }
+.qa-sum .i.sm { color: var(--accent); margin-right: 3px; }
+.qa-preview .link-btn { flex: none; padding: 8px; }
+.qa-help { margin: 0 0 12px; }
+.qa-help .ex {
+  display: inline-block; margin: 6px 6px 0 0; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--text); cursor: pointer;
+}
+#calDays .day { cursor: pointer; }
+.ev-time { display: grid; line-height: 1.25; }
+.ev-time small { color: var(--muted); font-weight: 500; font-size: 13px; }
+#evAllDay { margin: -4px 0 0; }
+input:disabled { opacity: .45; }

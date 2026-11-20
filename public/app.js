@@ -1,4 +1,5 @@
 import { occursOn, endIso, weekday } from "./recur.js";
+import { parseQuick } from "./quick.js";
 
 const $ = (s) => document.querySelector(s);
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -374,7 +375,7 @@ function renderMenu() {
     const date = new Date(monday); date.setDate(monday.getDate() + i);
     card.querySelector(".day-evs").replaceChildren(...eventsOn(isoDate(date)).map((ev) => {
       const li = document.createElement("li");
-      if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time; li.append(b); }
+      if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time + (ev.end ? "–" + ev.end : ""); li.append(b); }
       li.append(ev.title);
       return li;
     }));
@@ -414,13 +415,15 @@ function renderCal() {
       <ul class="evs"></ul>`;
     card.querySelector(".day-name").textContent = name;
     card.querySelector(".muted").textContent = fmt(date);
-    card.querySelector(".add-ev").onclick = () => openEvent({ date: iso });
+    card.onclick = (e) => { if (!e.target.closest(".ev")) openEvent({ date: iso }); };
     card.querySelector(".evs").replaceChildren(...eventsOn(iso).map((ev) => {
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.className = "ev";
       b.innerHTML = '<span class="ev-time"></span><span class="ev-title"></span>';
-      b.querySelector(".ev-time").textContent = ev.time || "Hele dagen";
+      const tm = b.querySelector(".ev-time");
+      tm.textContent = ev.time || "Hele dagen";
+      if (ev.end) { const sm = document.createElement("small"); sm.textContent = "–" + ev.end; tm.append(sm); }
       b.querySelector(".ev-title").textContent = ev.title;
       if (ev.repeat) b.querySelector(".ev-title").insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
       b.onclick = () => openEvent(ev);
@@ -473,6 +476,8 @@ function openEvent(ev) {
   $("#evTitle").value = ev.title || "";
   $("#evDate").value = ev.date;
   $("#evTime").value = ev.time || "";
+  $("#evEnd").value = ev.end || "";
+  syncTimeUi();
   $("#evFreq").value = ev.repeat?.freq || "";
   $("#evDur").value = ev.repeat?.dur || "inf";
   pickedDays = [...(ev.repeat?.days || [])];
@@ -482,6 +487,32 @@ function openEvent(ev) {
   $("#evDialog").showModal();
   if (!editing) $("#evTitle").focus();
 }
+
+// Sluttid: bare mulig med starttid. Flyttes starttiden, følger sluttiden med (samme varighet).
+const toMin = (t) => (t ? +t.slice(0, 2) * 60 + +t.slice(3, 5) : null);
+const fromMin = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+let lastStart = "";
+function syncTimeUi() {
+  const start = $("#evTime").value;
+  $("#evEnd").disabled = !start;
+  if (!start) $("#evEnd").value = "";
+  $("#evAllDay").hidden = !!start;
+  lastStart = start;
+}
+$("#evTime").onchange = () => {
+  const start = $("#evTime").value, end = $("#evEnd").value;
+  if (start && end && lastStart) {
+    const moved = toMin(end) + toMin(start) - toMin(lastStart);
+    $("#evEnd").value = moved > toMin(start) && moved < 24 * 60 ? fromMin(moved) : "";
+  }
+  syncTimeUi();
+};
+$("#evEnd").onchange = () => {
+  if ($("#evEnd").value && $("#evEnd").value <= $("#evTime").value) {
+    toast("Sluttid må være etter starttid");
+    $("#evEnd").value = "";
+  }
+};
 
 $("#evFreq").onchange = syncRepeatUi;
 $("#evDur").onchange = syncRepeatUi;
@@ -500,7 +531,7 @@ document.querySelectorAll("#evDays button").forEach((b) => {
 
 $("#evForm").onsubmit = (e) => {
   e.preventDefault();
-  const data = { title: $("#evTitle").value.trim(), date: $("#evDate").value, time: $("#evTime").value };
+  const data = { title: $("#evTitle").value.trim(), date: $("#evDate").value, time: $("#evTime").value, end: $("#evEnd").value };
   if (!data.title || !data.date) return;
   const freq = $("#evFreq").value;
   if (freq) {
@@ -528,6 +559,84 @@ $("#evDelete").onclick = () => {
   $("#evDialog").close();
   render();
 };
+
+// ---------- Hurtig-innlegging ----------
+const SHORT_DAYS = ["man", "tir", "ons", "tor", "fre", "lør", "søn"];
+const FREQ_TXT = { daily: "Hver dag", weekly: "Hver uke", biweekly: "Annenhver uke", monthly: "Hver måned", yearly: "Hvert år" };
+const DUR_TXT = { "1m": "i 1 mnd", "3m": "i 3 mnd", "6m": "i 6 mnd" };
+
+function quickParse() {
+  const today = new Date();
+  const from = calOffset > 0 ? isoDate(mondayOf(calOffset)) : isoDate(today);
+  return parseQuick($("#qaInput").value, { today, from });
+}
+
+function dayLabel(iso) {
+  const d = new Date(iso + "T12:00:00");
+  const diff = Math.round((d - new Date(isoDate(new Date()) + "T12:00:00")) / 864e5);
+  const rel = { 0: "I dag", 1: "I morgen" }[diff];
+  const name = SHORT_DAYS[weekday(iso)];
+  return (rel ? rel + ", " : name[0].toUpperCase() + name.slice(1) + " ") + fmt(d) + (d.getFullYear() !== new Date().getFullYear() ? " " + d.getFullYear() : "");
+}
+
+// Viser hvordan teksten blir tolket – før man trykker Enter.
+function renderQuick() {
+  const text = $("#qaInput").value.trim();
+  const ev = text ? quickParse() : null;
+  $("#qaHelp").hidden = !!text || document.activeElement !== $("#qaInput");
+  $("#qaPreview").hidden = !ev;
+  if (!ev) return;
+  const parts = [];
+  const add = (ic, txt) => {
+    const span = document.createElement("span");
+    span.innerHTML = icon(ic, "i sm");
+    span.append(txt);
+    parts.push(span);
+  };
+  const b = document.createElement("b");
+  b.textContent = ev.title;
+  parts.push(b);
+  const dl = dayLabel(ev.date);
+  add("calendar", ev.repeat ? "Fra " + dl[0].toLowerCase() + dl.slice(1) : dl);
+  add("clock", ev.time ? ev.time + (ev.end ? "–" + ev.end : "") : "Hele dagen");
+  if (ev.repeat) {
+    let r = FREQ_TXT[ev.repeat.freq];
+    if (ev.repeat.days) r += ": " + ev.repeat.days.map((d) => SHORT_DAYS[d]).join(", ");
+    if (DUR_TXT[ev.repeat.dur]) r += " " + DUR_TXT[ev.repeat.dur];
+    add("repeat", r);
+  }
+  $("#qaSum").replaceChildren(...parts);
+}
+
+// Hvilken uke (relativt til denne) en dato ligger i.
+const weekOffsetOf = (iso) => Math.round((new Date(iso + "T12:00:00") - mondayOf(0)) / (7 * 864e5) - 0.49);
+
+$("#qaInput").oninput = renderQuick;
+$("#qaInput").onfocus = renderQuick;
+$("#qaInput").onblur = () => setTimeout(renderQuick, 150);
+$("#qaForm").onsubmit = (e) => {
+  e.preventDefault();
+  const ev = quickParse();
+  if (!ev) { if ($("#qaInput").value.trim()) toast("Skriv hva avtalen gjelder"); return; }
+  send({ t: "evAdd", ...ev });
+  calOffset = weekOffsetOf(ev.date);
+  renderCal();
+  toast(`Lagt til: ${ev.title}, ${dayLabel(ev.date).toLowerCase()}`);
+  $("#qaInput").value = "";
+  renderQuick();
+};
+$("#qaMore").onclick = () => {
+  const ev = quickParse();
+  if (ev) openEvent(ev);
+};
+document.querySelectorAll("#qaHelp .ex").forEach((ex) => {
+  ex.onpointerdown = (e) => e.preventDefault();
+  ex.onclick = () => { $("#qaInput").value = ex.textContent; renderQuick(); $("#qaInput").focus(); };
+});
+// Lagring fra «Juster» tømmer hurtigfeltet.
+$("#evForm").addEventListener("submit", () => {
+  if (!editing && $("#qaInput").value) { $("#qaInput").value = ""; renderQuick(); }
+});
 
 $("#calPrev").onclick = () => { calOffset--; renderCal(); };
 $("#calNext").onclick = () => { calOffset++; renderCal(); };
