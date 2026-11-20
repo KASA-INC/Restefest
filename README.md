@@ -5,7 +5,7 @@ Enkel familie-handleliste med sanntidssynk via **familiekode**.
 - **Handleliste** med to faner: *I butikk* og *Oda*. Trykk for å krysse av, «Fjern handlede» rydder.
 - **Ukemeny**: Rett + Link for mandag–søndag, med bla mellom uker.
 - **Kalender**: ukemenyen kan abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>.ics`).
-- Ingen innlogging. Alle med samme kode deler data. Koden fungerer som passord, så del den bare med familien.
+- Familiekoden er et adjektiv + en matrett + et tall, f.eks. **Svett-Taco-427**. Store/små bokstaver og mellomrom spiller ingen rolle. Ingen innlogging; koden fungerer som passord, så del den bare med familien.
 
 ## Teknikk
 

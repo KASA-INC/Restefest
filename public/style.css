@@ -176,7 +176,7 @@ dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 .sheet h3 { margin-top: 14px; font-size: 16px; }
 .sheet p { margin: 0; }
 .code-box { background: var(--surface); border-radius: 12px; padding: 14px; text-align: center; }
-.code-box code { font-size: 22px; letter-spacing: .06em; font-weight: 700; }
+.code-box code { font-family: inherit; font-size: 24px; font-weight: 700; overflow-wrap: anywhere; }
 
 .toast {
   position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);

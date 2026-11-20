@@ -1,13 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
-const CODE_RE = /^[a-z0-9-]{6,40}$/;
+const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
 const LISTS = ["butikk", "oda"];
 const WEEK_RE = /^\d{4}-W\d{2}$/;
 const MAX_ITEMS = 500;
 const MAX_WEEKS = 60;
 
-const normCode = (s) => decodeURIComponent(s).trim().toLowerCase();
+const normCode = (s) => decodeURIComponent(s).normalize("NFC").trim().toLowerCase();
 
 export default {
   async fetch(req, env) {

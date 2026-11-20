@@ -1,7 +1,7 @@
 "use strict";
 
 const $ = (s) => document.querySelector(s);
-const CODE_RE = /^[a-z0-9-]{6,40}$/;
+const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
 const DAYS = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
 const MONTHS = ["jan", "feb", "mar", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "des"];
 
@@ -18,13 +18,25 @@ let view = store.get("view") || "list";
 let weekOffset = 0;
 
 // ---------- Familiekode ----------
+const ADJ = [
+  "svett", "heit", "kald", "vegansk", "økologisk", "sprø", "saftig", "kortreist", "glutenfri", "laktosefri",
+  "rykende", "sterk", "mild", "frossen", "fersk", "gyllen", "seig", "luftig", "kremet", "røkt",
+  "grillet", "stekt", "kokt", "rå", "sur", "søt", "salt", "glad", "sulten", "mett",
+  "eksotisk", "hjemmelaget", "fargerik", "lunken", "snerten", "fyrig", "smørstekt", "blid", "lat", "gammel",
+];
+const DISH = [
+  "taco", "lasagne", "bolognese", "pizza", "fiskesuppe", "kjøttkaker", "pinnekjøtt", "lapskaus", "fårikål", "raspeball",
+  "pølse", "hamburger", "sushi", "risgrøt", "pannekake", "vaffel", "laks", "torsk", "kylling", "karbonade",
+  "gryte", "wok", "burrito", "nachos", "carbonara", "risotto", "curry", "dal", "falafel", "kebab",
+  "ramen", "suppe", "omelett", "toast", "salat", "biff", "fiskegrateng", "fiskepinne", "tikkamasala", "quesadilla",
+];
 function newCode() {
-  const chars = "abcdefghjkmnpqrstuvwxyz23456789"; // uten forvekslbare tegn
-  const rnd = crypto.getRandomValues(new Uint8Array(12));
-  const s = Array.from(rnd, (b) => chars[b % chars.length]).join("");
-  return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8)}`;
+  const r = crypto.getRandomValues(new Uint32Array(3));
+  return `${ADJ[r[0] % ADJ.length]}-${DISH[r[1] % DISH.length]}-${100 + (r[2] % 900)}`;
 }
-const cleanCode = (s) => s.trim().toLowerCase().replace(/\s+/g, "-");
+// Vis koden pent: "svett-taco-427" -> "Svett-Taco-427"
+const prettyCode = (c) => c.replace(/(^|-)(\p{L})/gu, (_, d, l) => d + l.toUpperCase());
+const cleanCode = (s) => s.normalize("NFC").trim().toLowerCase().replace(/\s+/g, "-");
 
 function start(c) {
   code = c;
@@ -272,12 +284,12 @@ const inviteUrl = () => `${location.origin}/?kode=${encodeURIComponent(code)}`;
 const calUrl = () => `${location.host}/cal/${encodeURIComponent(code)}.ics`;
 
 $("#settingsBtn").onclick = () => {
-  $("#codeShow").textContent = code;
+  $("#codeShow").textContent = prettyCode(code);
   $("#webcalLink").href = `webcal://${calUrl()}`;
   $("#settings").showModal();
 };
 $("#shareBtn").onclick = async () => {
-  const data = { title: "Handleliste", text: `Bli med i handlelisten vår (kode: ${code})`, url: inviteUrl() };
+  const data = { title: "Handleliste", text: `Bli med i handlelisten vår (kode: ${prettyCode(code)})`, url: inviteUrl() };
   if (navigator.share) { try { await navigator.share(data); } catch {} }
   else copy(inviteUrl(), "Lenke kopiert");
 };
