@@ -136,7 +136,7 @@ main { padding: 0 16px; }
 
 .add { display: flex; gap: 8px; margin-bottom: 14px; }
 .add .primary { width: 50px; padding: 0; flex: none; display: grid; place-items: center; }
-.add .primary .i { width: 28px; height: 28px; }
+.add .primary .i { width: 28px; height: 28px; margin: 0; } /* ikon alene: ingen luft til tekst */
 
 .suggest { list-style: none; margin: -6px 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .suggest:empty { display: none; }
