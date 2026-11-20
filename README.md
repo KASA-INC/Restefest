@@ -6,7 +6,7 @@ Enkel familie-handleliste med sanntidssynk via **familiekode**.
 - **Autoutfylling**: forslag fra tidligere varer mens du skriver (mest brukte først, delt i familien). Trykk × på et forslag for å glemme det.
 - **Kalender**: felles avtaler per uke (tittel, dato, valgfritt klokkeslett). Kan også abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>/kalender.ics`).
 - **Ukemeny**: Rett + Link for mandag–søndag, med bla mellom uker.
-- **Kalender**: ukemenyen kan abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>.ics`).
+- **Abonnement**: ukemenyen kan også abonneres på i iPhone-kalenderen (`webcal://…/cal/<kode>.ics`).
 - Familiekoden er et adjektiv + en matrett, f.eks. **Svett-Taco**. Store/små bokstaver og mellomrom spiller ingen rolle. Ingen innlogging; koden fungerer som passord, så del den bare med familien.
 
 ## Teknikk
