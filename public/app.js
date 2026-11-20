@@ -161,6 +161,7 @@ function showView(v) {
   $("#view-cal").hidden = v !== "cal";
   $("#title").textContent = { list: "Lister", menu: "Ukemeny", cal: "Kalender" }[v] || "";
   $("#title").classList.toggle("clock", v === "home");
+  $("#title").style.fontSize = "";
   if (v === "home") tickClock(true);
   window.scrollTo(0, 0);
   document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
@@ -991,13 +992,26 @@ $("#calNext").onclick = () => { calOffset++; renderCal(); };
 $("#calThis").onclick = () => { calOffset = 0; renderCal(); };
 
 // ---------- Startskjerm ----------
-// Startskjermens overskrift: «Søn 29. nov 14:32», med klokke som går.
+// Startskjermens overskrift: «Lørdag 21. nov. kl. 00:10», med klokke som går.
+// Norske månedsforkortelser – punktum bare når ordet faktisk er forkortet.
+const MONTHS_ABBR = ["jan.", "feb.", "mars", "apr.", "mai", "juni", "juli", "aug.", "sep.", "okt.", "nov.", "des."];
+
+// Krymper overskriften akkurat nok til at den får plass på én linje (maks 28 px).
+function fitTitle() {
+  const el = $("#title");
+  el.style.fontSize = "";
+  let size = 28;
+  while (el.scrollWidth > el.clientWidth + 1 && size > 16) {
+    size -= 1;
+    el.style.fontSize = size + "px";
+  }
+}
+window.addEventListener("resize", () => { if (view === "home") fitTitle(); });
 let shownClock = "";
 function tickClock(force = false) {
   if (view !== "home") return;
   const now = new Date();
-  const dayName = SHORT_DAYS[(now.getDay() + 6) % 7];
-  const date = `${dayName[0].toUpperCase() + dayName.slice(1)} ${now.getDate()}. ${MONTHS[now.getMonth()]}`;
+  const date = `${DAYS[(now.getDay() + 6) % 7]} ${now.getDate()}. ${MONTHS_ABBR[now.getMonth()]}`;
   const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   if (!force && shownClock === date + time) return;
   const firstOfDay = shownClock && !shownClock.startsWith(date);
@@ -1005,7 +1019,8 @@ function tickClock(force = false) {
   const t = document.createElement("span");
   t.className = "time";
   t.textContent = time;
-  $("#title").replaceChildren(date + " ", t);
+  $("#title").replaceChildren(date + " kl. ", t);
+  fitTitle();
   if (firstOfDay) renderHome(); // ny dag: oppdater middag, aktiviteter osv.
 }
 setInterval(tickClock, 1000);

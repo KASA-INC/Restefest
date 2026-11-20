@@ -379,5 +379,5 @@ input:disabled { opacity: .45; }
 .check-row .i.sm { color: var(--accent); margin: 0 -4px 0 0; }
 
 /* Klokke på startskjermen */
-#title.clock { white-space: nowrap; font-size: min(28px, 7.2vw); font-variant-numeric: tabular-nums; }
+#title.clock { white-space: nowrap; overflow: hidden; min-width: 0; font-variant-numeric: tabular-nums; }
 #title.clock .time { color: var(--accent); }

@@ -3,7 +3,7 @@
 //   "Tannlege 24.11 kl 8.15"
 //   "Middag hos Tor i morgen 18-21"
 //   "Søppeltømming annenhver mandag"
-//   "Ida 14.03.2015" / "Bursdag Ida 3. jan"   -> bursdag (hvert år, med alder når året er kjent)
+//   "Ida 14.03.2015" / "Kristian 090484" / "Bursdag Ida 3. jan"   -> bursdag (hvert år, med alder når året er kjent)
 // Gir { title, date, time, end, repeat, kind?, born? } eller null hvis det ikke er noen tittel.
 
 import { toIso, weekday } from "./recur.js";
@@ -148,7 +148,13 @@ export function parseQuick(text, ctx = {}) {
     const t = new Date(iso + "T12:00:00Z");
     return t.getUTCMonth() + 1 === m ? iso : null;
   };
-  take(`${B}(\\d{1,2})\\.?\\s*${MONTH_RE}(?:\\s+(\\d{4}))?${E}`, (_, d, mon, y) => {
+  // Sammenhengende: "090484" (ddmmåå) og "09041984" (ddmmåååå) – som starten på et personnummer.
+  take(`${B}(\\d{2})(\\d{2})(\\d{2}|\\d{4})${E}`, (_, d, m, y) => {
+    if (+m < 1 || +m > 12 || +d < 1) return false;
+    date = fixYear(y, +m, +d);
+    if (!date) return false;
+  });
+  if (!date) take(`${B}(\\d{1,2})\\.?\\s*${MONTH_RE}(?:\\s+(\\d{4}))?${E}`, (_, d, mon, y) => {
     const m = MONTHS.findIndex((x) => mon.toLowerCase().startsWith(x)) + 1;
     date = fixYear(y, m, +d);
     if (!date) return false;
