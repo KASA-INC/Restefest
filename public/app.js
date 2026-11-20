@@ -1,5 +1,6 @@
 import { occursOn, endIso, weekday } from "./recur.js";
 import { parseQuick } from "./quick.js";
+import { holidaysOn } from "./holidays.js";
 
 const $ = (s) => document.querySelector(s);
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -504,14 +505,21 @@ function renderMenu() {
 
   $("#days").querySelectorAll(".mrow").forEach((card, i) => {
     const date = new Date(monday); date.setDate(monday.getDate() + i);
-    card.querySelector(".day-evs").replaceChildren(...eventsOn(isoDate(date)).map((ev) => {
-      const li = document.createElement("li");
-      if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time + (ev.end ? "–" + ev.end : ""); li.append(b); }
-      li.append(ev.title);
-      return li;
-    }));
+    const iso = isoDate(date);
+    card.querySelector(".day-evs").replaceChildren(...eventsOn(iso).map((ev) => evLine(ev, iso)));
+    card.querySelector(".mlabel b").classList.toggle("red-day", redDay(iso));
     fillDinner(card.querySelector(".dish"), card.querySelector(".rlink"), week[i]);
   });
+}
+
+// Kort linje for en avtale (ukemeny og «i morgen» på startskjermen).
+function evLine(ev, iso) {
+  const li = document.createElement("li");
+  if (ev.holiday) li.className = "hol" + (ev.red ? " red" : "");
+  if (ev.kind === "bday") li.innerHTML = icon("cake", "i sm") + " ";
+  if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time + (ev.end ? "–" + ev.end : ""); li.append(b); }
+  li.append(evLabel(ev, iso));
+  return li;
 }
 
 // Middag for én dag: et felt for retten og en oppskriftsknapp. Brukes av ukemenyen og startskjermen.
@@ -604,10 +612,23 @@ $("#thisWeek").onclick = () => { weekOffset = menuBase(); renderMenu(); };
 
 // ---------- Kalender ----------
 // Avtaler (også gjentakende) som skjer på en dato, sortert: heldag først, så etter klokkeslett.
+// Helligdager vises med mindre man har slått dem av (gjelder denne enheten).
+let showHolidays = store.get("holidays") !== "off";
+const holidayEvents = (iso) => (showHolidays ? holidaysOn(iso).map((h) => ({ ...h, time: "", holiday: true })) : []);
+const redDay = (iso) => holidaysOn(iso).some((h) => h.red);
+
 const eventsOn = (iso) => [
+  ...holidayEvents(iso),
   ...(state.events || []).filter((e) => occursOn(e, iso)),
   ...(state.ext || []).filter((e) => e.date === iso),
-].sort((a, b) => (a.time || "").localeCompare(b.time || "") || (a.ts || 0) - (b.ts || 0));
+].sort((a, b) => !!b.holiday - !!a.holiday || (a.time || "").localeCompare(b.time || "") || (a.ts || 0) - (b.ts || 0));
+
+// Teksten som vises for en avtale på en gitt dato (bursdager får alder).
+function evLabel(ev, iso) {
+  if (ev.kind !== "bday") return ev.title;
+  const age = ev.born ? Number(iso.slice(0, 4)) - ev.born : 0;
+  return age > 0 ? `${ev.title} fyller ${age}` : `${ev.title} har bursdag`;
+}
 
 const feedName = (id) => (state.feeds || []).find((f) => f.id === id)?.name || "Annen kalender";
 
@@ -615,17 +636,19 @@ const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2
 
 // Én avtale i en liste. Med `nowMin` (minutter siden midnatt) markeres
 // det som pågår nå, og det som er ferdig tones ned.
-function evItem(ev, nowMin = null) {
+function evItem(ev, nowMin = null, iso = isoDate(new Date())) {
   const li = document.createElement("li");
   const b = document.createElement("button");
   b.className = "ev";
   b.innerHTML = '<span class="ev-time"></span><span class="ev-title"></span>';
   const tm = b.querySelector(".ev-time");
-  tm.textContent = ev.time || "Hele dagen";
+  tm.textContent = ev.time || (ev.holiday ? (ev.red ? "Rød dag" : "Merkedag") : ev.kind === "bday" ? "Bursdag" : "Hele dagen");
   if (ev.end) { const sm = document.createElement("small"); sm.textContent = "–" + ev.end; tm.append(sm); }
   const title = b.querySelector(".ev-title");
-  title.textContent = ev.title;
-  if (ev.repeat) title.insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
+  title.textContent = evLabel(ev, iso);
+  if (ev.kind === "bday") { b.classList.add("bday"); title.insertAdjacentHTML("afterbegin", icon("cake", "i sm")); }
+  else if (ev.repeat) title.insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
+  if (ev.holiday) b.classList.add("holiday", ...(ev.red ? ["red"] : []));
   if (ev.feed) {
     const src = document.createElement("span");
     src.className = "src";
@@ -640,6 +663,7 @@ function evItem(ev, nowMin = null) {
     else if (nowMin >= start) title.insertAdjacentHTML("beforeend", '<span class="now">nå</span>');
   }
   b.onclick = (e) => {
+    if (ev.holiday) return; // trykk går videre til dagen (ny avtale)
     e.stopPropagation();
     if (ev.feed) toast(`Fra «${feedName(ev.feed)}» – endres der`);
     else openEvent(ev);
@@ -661,8 +685,9 @@ function renderCal() {
       <ul class="evs"></ul>`;
     card.querySelector(".day-name").textContent = name;
     card.querySelector(".muted").textContent = fmt(date);
-    card.onclick = (e) => { if (!e.target.closest(".ev")) openEvent({ date: iso }); };
-    card.querySelector(".evs").replaceChildren(...eventsOn(iso).map((ev) => evItem(ev)));
+    card.onclick = (e) => { const ev = e.target.closest(".ev"); if (!ev || ev.classList.contains("holiday")) openEvent({ date: iso }); };
+    card.querySelector(".evs").replaceChildren(...eventsOn(iso).map((ev) => evItem(ev, null, iso)));
+    card.querySelector(".day-name").classList.toggle("red-day", redDay(iso));
     return card;
   });
   $("#calDays").replaceChildren(...cards);
@@ -695,6 +720,20 @@ const fmtLong = (iso) => {
 
 // Viser/skjuler feltene for gjentakelse og skriver en kort forklaring.
 function syncRepeatUi() {
+  const bday = $("#evBday").checked;
+  $("#evTimeRow").hidden = $("#evRepeatRow").hidden = bday;
+  $("#evAllDay").hidden = bday || !!$("#evTime").value;
+  if (bday) {
+    $("#evDaysWrap").hidden = true;
+    $("#evDateLabel").textContent = "Fødselsdato (med årstall gir alder)";
+    const d = $("#evDate").value;
+    const y = +d.slice(0, 4), now = new Date().getFullYear();
+    $("#evHint").textContent = d && y < now
+      ? `Vises hvert år ${fmtLong(d).replace(/ \d+$/, "")} – fyller ${now - y} i år.`
+      : "Vises hvert år. Med fødselsår vises også alderen.";
+    $("#evHint").hidden = false;
+    return;
+  }
   const freq = $("#evFreq").value;
   const date = $("#evDate").value;
   const weekly = freq === "weekly" || freq === "biweekly";
@@ -721,7 +760,8 @@ function syncRepeatUi() {
 }
 
 function openEvent(ev) {
-  editing = ev.id ? ev : null;
+  editing = ev.id ? (state.events || []).find((e) => e.id === ev.id) || null : null;
+  $("#evBday").checked = ev.kind === "bday";
   $("#evHead").textContent = editing ? "Endre avtale" : "Ny avtale";
   $("#evTitle").value = ev.title || "";
   $("#evDate").value = ev.date;
@@ -732,7 +772,7 @@ function openEvent(ev) {
   $("#evDur").value = ev.repeat?.dur || "inf";
   pickedDays = [...(ev.repeat?.days || [])];
   $("#evDelete").hidden = !editing;
-  $("#evDelete").lastChild.textContent = editing?.repeat ? " Slett alle gjentakelser" : " Slett avtale";
+  $("#evDelete").lastChild.textContent = editing?.kind === "bday" ? " Slett bursdag" : editing?.repeat ? " Slett alle gjentakelser" : " Slett avtale";
   syncRepeatUi();
   $("#evDialog").showModal();
   if (!editing) $("#evTitle").focus();
@@ -765,6 +805,7 @@ $("#evEnd").onchange = () => {
 };
 
 $("#evFreq").onchange = syncRepeatUi;
+$("#evBday").onchange = syncRepeatUi;
 $("#evDur").onchange = syncRepeatUi;
 $("#evDate").onchange = () => {
   // Ny startdato: la ukedagsvalget følge med hvis bare én dag var valgt automatisk.
@@ -783,8 +824,12 @@ $("#evForm").onsubmit = (e) => {
   e.preventDefault();
   const data = { title: $("#evTitle").value.trim(), date: $("#evDate").value, time: $("#evTime").value, end: $("#evEnd").value };
   if (!data.title || !data.date) return;
-  const freq = $("#evFreq").value;
-  if (freq) {
+  const freq = $("#evBday").checked ? "" : $("#evFreq").value;
+  if ($("#evBday").checked) {
+    const y = +data.date.slice(0, 4);
+    Object.assign(data, { time: "", end: "", kind: "bday", repeat: { freq: "yearly", dur: "inf" } });
+    if (y < new Date().getFullYear()) data.born = y;
+  } else if (freq) {
     data.repeat = { freq, dur: $("#evDur").value };
     if (freq === "weekly" || freq === "biweekly") {
       if (!pickedDays.length) { toast("Velg minst én dag"); return; }
@@ -793,6 +838,8 @@ $("#evForm").onsubmit = (e) => {
   }
   if (editing) {
     delete editing.repeat;
+    delete editing.kind;
+    delete editing.born;
     Object.assign(editing, data);
     send({ t: "evEdit", id: editing.id, ...data });
   } else {
@@ -821,6 +868,15 @@ function dayLabel(iso) {
   const rel = { 0: "I dag", 1: "I morgen" }[diff];
   const name = SHORT_DAYS[weekday(iso)];
   return (rel ? rel + ", " : name[0].toUpperCase() + name.slice(1) + " ") + fmt(d) + (d.getFullYear() !== new Date().getFullYear() ? " " + d.getFullYear() : "");
+}
+
+// Datoen kalenderen skal hoppe til etter innlegging (bursdager: neste gang de er).
+function nextDate(ev) {
+  if (ev.kind !== "bday") return ev.date;
+  const today = isoDate(new Date());
+  const y = new Date().getFullYear();
+  for (const yy of [y, y + 1]) { const d = `${yy}-${ev.date.slice(5)}`; if (d >= today) return d; }
+  return ev.date;
 }
 
 // Hvilken uke (relativt til denne) en dato ligger i.
@@ -868,6 +924,19 @@ function wireQuick({ form, input, preview, sum, more, help, from, after }) {
     const b = document.createElement("b");
     b.textContent = ev.title;
     parts.push(b);
+    if (ev.kind === "bday") {
+      const [y, m, d] = ev.date.split("-").map(Number);
+      add("cake", `Bursdag ${d}. ${MONTHS[m - 1]} hvert år`);
+      if (ev.born) {
+        // Neste bursdag: i år hvis den ikke har vært, ellers neste år.
+        const now = new Date();
+        const thisYear = `${now.getFullYear()}-${ev.date.slice(5)}`;
+        const next = thisYear >= isoDate(now) ? now.getFullYear() : now.getFullYear() + 1;
+        add("calendar", `Fyller ${next - ev.born} ${next === now.getFullYear() ? "i år" : "neste år"}`);
+      }
+      $(sum).replaceChildren(...parts);
+      return;
+    }
     const dl = dayLabel(ev.date);
     add("calendar", ev.repeat ? "Fra " + dl[0].toLowerCase() + dl.slice(1) : dl);
     add("clock", ev.time ? ev.time + (ev.end ? "–" + ev.end : "") : "Hele dagen");
@@ -887,7 +956,7 @@ function wireQuick({ form, input, preview, sum, more, help, from, after }) {
     const ev = parse();
     if (!ev) { if (inp.value.trim()) toast("Skriv hva avtalen gjelder"); return; }
     send({ t: "evAdd", ...ev });
-    toast(`Lagt til: ${ev.title}, ${dayLabel(ev.date).toLowerCase()}`);
+    toast(ev.kind === "bday" ? `Bursdag lagt til: ${ev.title}` : `Lagt til: ${ev.title}, ${dayLabel(ev.date).toLowerCase()}`);
     inp.value = "";
     refresh();
     after(ev);
@@ -906,7 +975,7 @@ function wireQuick({ form, input, preview, sum, more, help, from, after }) {
 wireQuick({
   form: "#qaForm", input: "#qaInput", preview: "#qaPreview", sum: "#qaSum", more: "#qaMore", help: "#qaHelp",
   from: () => (calOffset > 0 ? isoDate(mondayOf(calOffset)) : isoDate(new Date())),
-  after: (ev) => { calOffset = weekOffsetOf(ev.date); renderCal(); },
+  after: (ev) => { calOffset = weekOffsetOf(nextDate(ev)); renderCal(); },
 });
 
 // Lagring fra «Juster» tømmer hurtigfeltet det kom fra.
@@ -933,7 +1002,7 @@ const homeAdder = wireAdd("#hAddForm", "#hAddInput", "#hSuggest", () => hList);
 wireQuick({
   form: "#hqaForm", input: "#hqaInput", preview: "#hqaPreview", sum: "#hqaSum", more: "#hqaMore",
   from: () => isoDate(new Date()),
-  after: (ev) => { calOffset = weekOffsetOf(ev.date); render(); },
+  after: (ev) => { calOffset = weekOffsetOf(nextDate(ev)); render(); },
 });
 document.querySelectorAll("[data-hlist]").forEach((b) => {
   b.onclick = () => { hList = b.dataset.hlist; store.set("hlist", hList); renderHome(); };
@@ -945,15 +1014,17 @@ function renderHome() {
   const now = new Date();
   const { key, day } = todaySlot();
   if (view === "home") $("#title").textContent = greeting();
-  $("#homeDate").textContent = `${DAYS[day]} ${now.getDate()}. ${MONTHS_FULL[now.getMonth()]} · uke ${isoWeek(now).w}`;
+  const hol = showHolidays ? holidaysOn(isoDate(now)).map((h) => h.title) : [];
+  $("#homeDate").textContent = [`${DAYS[day]} ${now.getDate()}. ${MONTHS_FULL[now.getMonth()]}`, `uke ${isoWeek(now).w}`, ...hol].join(" · ");
+  $("#homeDate").classList.toggle("red-day", showHolidays && redDay(isoDate(now)));
 
   // Middag i dag
   $("#hDish").placeholder = day === 4 ? "Taco" : "Hva blir det til middag?";
   fillDinner($("#hDish"), $("#hRecipe"), state.menu[key]?.[day]);
 
   // Aktiviteter i dag
-  const evs = eventsOn(isoDate(now));
-  $("#hEvents").replaceChildren(...evs.map((ev) => evItem(ev, now.getHours() * 60 + now.getMinutes())));
+  const evs = eventsOn(isoDate(now)).filter((e) => !e.holiday); // helligdager står i datolinjen
+  $("#hEvents").replaceChildren(...evs.map((ev) => evItem(ev, now.getHours() * 60 + now.getMinutes(), isoDate(now))));
   $("#hNoEvents").hidden = evs.length > 0;
 
   // De fem øverste på handlelisten
@@ -981,12 +1052,7 @@ function renderHome() {
     li.append(" " + tmDinner);
     lines.push(li);
   }
-  for (const ev of eventsOn(isoDate(tm))) {
-    const li = document.createElement("li");
-    if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time + (ev.end ? "–" + ev.end : ""); li.append(b); }
-    li.append(ev.title);
-    lines.push(li);
-  }
+  for (const ev of eventsOn(isoDate(tm))) lines.push(evLine(ev, isoDate(tm)));
   $("#hTomorrow").replaceChildren(...lines);
   $("#hTomorrowCard").hidden = !lines.length;
 }
@@ -1023,6 +1089,7 @@ $("#settingsBtn").onclick = () => {
   $("#webcalMenu").href = calUrl();
   $("#webcalEvents").href = calUrl("/kalender");
   renderFeeds();
+  $("#showHolidays").checked = showHolidays;
   $("#settings").showModal();
 };
 // ---------- Andre kalendere ----------
@@ -1057,6 +1124,12 @@ function renderFeeds() {
     return li;
   }));
 }
+
+$("#showHolidays").onchange = () => {
+  showHolidays = $("#showHolidays").checked;
+  store.set("holidays", showHolidays ? "on" : "off");
+  render();
+};
 
 $("#feedAdd").onclick = () => {
   const name = $("#feedName").value.trim();

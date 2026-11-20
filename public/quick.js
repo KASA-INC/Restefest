@@ -3,7 +3,8 @@
 //   "Tannlege 24.11 kl 8.15"
 //   "Middag hos Tor i morgen 18-21"
 //   "Søppeltømming annenhver mandag"
-// Gir { title, date, time, end, repeat } eller null hvis det ikke er noen tittel.
+//   "Ida 14.03.2015" / "Bursdag Ida 3. jan"   -> bursdag (hvert år, med alder når året er kjent)
+// Gir { title, date, time, end, repeat, kind?, born? } eller null hvis det ikke er noen tittel.
 
 import { toIso, weekday } from "./recur.js";
 
@@ -47,8 +48,13 @@ export function parseQuick(text, ctx = {}) {
   let time = "";
   let end = "";
   let freq = "";
+  let bdayWord = false;
+  let yearGiven = false;
   let dur = "";
   const days = [];
+
+  // Bursdag
+  take(`${B}(?:bursdag(?:en)?|fødselsdag(?:en)?|født|f\\.)(?=\\s|$)`, () => { bdayWord = true; });
 
   // Varighet
   take(`${B}i\\s+(\\d|en|ett|én|to|tre|seks)\\s*(?:mnd|md|måned(?:er)?)\\.?${E}`, (_, n) => {
@@ -133,7 +139,10 @@ export function parseQuick(text, ctx = {}) {
 
   // Datoer: "24.12", "24/12", "24.12.2027", "24. des", "24 desember"
   const fixYear = (y, m, d) => {
-    let year = y ? (String(y).length === 2 ? 2000 + Number(y) : Number(y)) : Number(today.slice(0, 4));
+    const thisYear = Number(today.slice(0, 4));
+    // To sifre: "15" = 2015, men "98" = 1998 (ingen datoer langt fram i tid).
+    let year = y ? (String(y).length === 2 ? (2000 + Number(y) > thisYear + 1 ? 1900 : 2000) + Number(y) : Number(y)) : thisYear;
+    if (y) yearGiven = true;
     let iso = `${year}-${pad(m)}-${pad(d)}`;
     if (!y && iso < today) iso = `${year + 1}-${pad(m)}-${pad(d)}`;
     const t = new Date(iso + "T12:00:00Z");
@@ -153,7 +162,7 @@ export function parseQuick(text, ctx = {}) {
   }
 
   // Tittel: det som er igjen, uten småord som hang sammen med det vi tolket.
-  const glue = "kl\\.?|fra|på|den|og|hver|til|i|,|\\+|&";
+  const glue = "kl\\.?|fra|på|den|og|hver|til|i|har|,|\\+|&";
   let t = rest;
   for (let k = 0; k < 4; k++) {
     t = t
@@ -180,8 +189,17 @@ export function parseQuick(text, ctx = {}) {
     }
   }
   date ||= from;
+  const Title = title[0].toUpperCase() + title.slice(1);
 
-  const out = { title: title[0].toUpperCase() + title.slice(1), date, time, end };
+  // Bursdag: ordet «bursdag», eller en dato med årstall som har vært (og uten klokkeslett).
+  if (bdayWord || (yearGiven && date < today && !time && !freq)) {
+    const born = yearGiven && +date.slice(0, 4) < +today.slice(0, 4) ? +date.slice(0, 4) : null;
+    const out = { title: Title, date, time: "", end: "", kind: "bday", repeat: { freq: "yearly", dur: "inf" } };
+    if (born) out.born = born;
+    return out;
+  }
+
+  const out = { title: Title, date, time, end };
   if (freq) {
     out.repeat = { freq, dur: dur || "inf" };
     if (freq === "weekly" || freq === "biweekly") out.repeat.days = days.length ? days : [weekday(date)];

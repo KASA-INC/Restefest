@@ -365,3 +365,15 @@ input:disabled { opacity: .45; }
 .dish-suggest .forget { padding: 6px 10px 6px 4px; }
 #evSuggest { margin: -4px 0 0; }
 .card .suggest:empty, #evSuggest:empty { display: none; }
+
+/* Helligdager og bursdager */
+.ev.holiday { cursor: default; }
+.ev.holiday .ev-time { color: var(--muted); font-weight: 500; }
+.ev.holiday.red .ev-title, .ev.holiday.red .ev-time { color: var(--danger); }
+.ev.bday .ev-title .i.sm { color: var(--accent); margin: 0 6px 0 0; vertical-align: -3px; }
+.red-day, .red-day + .muted { color: var(--danger) !important; }
+.day-evs li.hol { font-style: italic; }
+.day-evs li.hol.red { color: var(--danger); font-style: normal; }
+.check-row { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 500; cursor: pointer; }
+.check-row input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
+.check-row .i.sm { color: var(--accent); margin: 0 -4px 0 0; }

@@ -261,14 +261,20 @@ export class Family extends DurableObject {
         // Sluttid bare hvis det er en starttid og den er senere enn den.
         let end = str(msg.end, 5);
         if (!time || !TIME_RE.test(end) || end <= time) end = "";
+        // Bursdag: heldag, hvert år, med fødselsår hvis det er kjent.
+        const bday = msg.kind === "bday";
+        const bornYear = Number(msg.born);
         st.hidden.event = st.hidden.event.filter((k) => k !== title.toLowerCase()); // brukt igjen = vis igjen
-        const repeat = cleanRepeat(msg.repeat, date);
-        const data = { title, date, time, end, ts: Date.now() };
+        const repeat = bday ? { freq: "yearly", dur: "inf" } : cleanRepeat(msg.repeat, date);
+        const data = bday ? { title, date, time: "", end: "", ts: Date.now(), kind: "bday" } : { title, date, time, end, ts: Date.now() };
+        if (bday && Number.isInteger(bornYear) && bornYear >= 1900 && bornYear <= new Date().getFullYear()) data.born = bornYear;
         if (repeat) data.repeat = repeat;
         if (msg.t === "evEdit") {
           const ev = st.events.find((e) => e.id === msg.id);
           if (!ev) return false;
           delete ev.repeat;
+          delete ev.kind;
+          delete ev.born;
           Object.assign(ev, data);
         } else {
           // Rydd bort avtaler som var ferdige for over ett år siden.
@@ -357,7 +363,8 @@ export class Family extends DurableObject {
         const date = ev.repeat ? firstIso(ev) : ev.date;
         const rule = ev.repeat ? [rrule(ev, !!ev.time)] : [];
         if (!ev.time) {
-          allDay(ev.id, new Date(date + "T00:00:00Z"), ev.title, rule);
+          const title = ev.kind === "bday" ? `🎂 ${ev.title} har bursdag${ev.born ? ` (f. ${ev.born})` : ""}` : ev.title;
+          allDay(ev.id, new Date(date + "T00:00:00Z"), title, rule);
           continue;
         }
         // Uten sluttid varer avtalen én time.

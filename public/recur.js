@@ -51,8 +51,15 @@ export function occursOn(ev, iso) {
     }
     case "monthly":
       return new Date(t).getUTCDate() === new Date(start).getUTCDate();
-    case "yearly":
+    case "yearly": {
+      // 29. februar markeres 28. februar i år som ikke er skuddår.
+      if (ev.date.slice(5) === "02-29") {
+        const y = +iso.slice(0, 4);
+        const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+        return iso.slice(5) === (leap ? "02-29" : "02-28");
+      }
       return iso.slice(5) === ev.date.slice(5);
+    }
   }
   return false;
 }
