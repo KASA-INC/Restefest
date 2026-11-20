@@ -187,6 +187,13 @@
           <span class="ex">Svømming hver onsdag kl 18 i 3 mnd</span>
           <span class="ex">Ida 14.03.2015</span>
         </p>
+        <div id="calModes" class="seg seg3" role="tablist" aria-label="Visning">
+          <button type="button" role="tab" data-mode="week">Uke</button>
+          <button type="button" role="tab" data-mode="month">Måned</button>
+          <button type="button" role="tab" data-mode="list">Kommende</button>
+        </div>
+
+        <div id="calWeek">
         <div class="week-nav">
           <button id="calPrev" class="icon-btn" aria-label="Forrige uke"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
           <div>
@@ -197,6 +204,31 @@
         </div>
         <button id="calThis" class="link-btn center" hidden>Gå til denne uken</button>
         <div id="calDays" class="days"></div>
+        </div>
+
+        <div id="calMonth" hidden>
+          <div class="week-nav">
+            <button id="monPrev" class="icon-btn" aria-label="Forrige måned"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+            <div id="monLabel" class="week-label"></div>
+            <button id="monNext" class="icon-btn" aria-label="Neste måned"><svg class="i" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+          </div>
+          <button id="monThis" class="link-btn center" hidden>Gå til denne måneden</button>
+          <div class="mgrid-head"><span>M</span><span>T</span><span>O</span><span>T</span><span>F</span><span>L</span><span>S</span></div>
+          <div id="monGrid" class="mgrid"></div>
+          <section id="monDay" class="card mday">
+            <div class="card-head">
+              <h2 id="monDayTitle"></h2>
+              <button type="button" id="monAdd" class="add-ev" aria-label="Ny avtale denne dagen"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></button>
+            </div>
+            <ul id="monEvents" class="evs"></ul>
+            <p id="monEmpty" class="muted small">Ingen avtaler.</p>
+          </section>
+        </div>
+
+        <div id="calList" hidden>
+          <div id="agenda" class="agenda"></div>
+          <button type="button" id="agendaMore" class="btn wide">Vis flere</button>
+        </div>
       </div>
     </main>
 

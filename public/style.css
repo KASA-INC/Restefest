@@ -381,3 +381,38 @@ input:disabled { opacity: .45; }
 /* Klokke på startskjermen */
 #title.clock { white-space: nowrap; overflow: hidden; min-width: 0; font-variant-numeric: tabular-nums; }
 #title.clock .time { color: var(--accent); }
+
+/* Kalender: visningsvalg */
+.seg3 { grid-template-columns: 1fr 1fr 1fr; margin: 0 0 10px; }
+
+/* Månedsvisning */
+.mgrid-head, .mgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.mgrid-head { margin: 2px 0 4px; }
+.mgrid-head span { text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); }
+.mgrid-head span:nth-child(7) { color: var(--danger); }
+.mcell {
+  aspect-ratio: 1 / 1.05; border: 0; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow);
+  display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center; padding: 4px 2px 6px;
+  font-size: 16px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.mcell.other { background: none; box-shadow: none; color: var(--muted); opacity: .45; }
+.mcell.red .num { color: var(--danger); }
+.mcell.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mcell .dots { display: flex; gap: 3px; height: 6px; }
+.mcell .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.mcell .dots i.ext { background: var(--muted); }
+.mcell .dots i.bday { background: #d4883a; }
+.mcell .dots i.more { background: none; width: auto; height: auto; font-size: 9px; line-height: 6px; color: var(--muted); font-style: normal; }
+.mday { margin-top: 12px; }
+.mday h2 { font-size: 17px; }
+
+/* Kommende */
+.agenda { display: grid; gap: 10px; margin-bottom: 12px; }
+.agenda .aday { background: var(--surface); border-radius: 14px; padding: 10px 14px 4px; box-shadow: var(--shadow); }
+.agenda h3 { margin: 0 0 2px; font-size: 14px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.agenda h3.red-day { color: var(--danger); }
+.agenda .evs .ev { padding: 8px 0; }
+.agenda-empty { text-align: center; color: var(--muted); margin: 24px 0; }
+.mcell { aspect-ratio: auto; height: 46px; padding: 4px 2px 5px; font-size: 15px; }
+.mgrid { gap: 3px; }
+.mcell.sun .num { color: var(--danger); }

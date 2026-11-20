@@ -24,6 +24,10 @@ let view = "home"; // appen åpner alltid på startskjermen
 const menuBase = () => (new Date().getDay() + 6) % 7 >= 4 ? 1 : 0;
 let weekOffset = menuBase();
 let calOffset = 0;
+let calMode = store.get("calmode") || "week"; // week | month | list
+let monOffset = 0;      // måneder fra denne
+let selDay = null;      // valgt dag i månedsvisningen
+let agendaDays = 60;    // hvor langt fram «Kommende» viser
 
 // ---------- Familiekode ----------
 const ADJ = [
@@ -675,7 +679,120 @@ function evItem(ev, nowMin = null, iso = isoDate(new Date())) {
   return li;
 }
 
+const MONTHS_LONG = ["januar", "februar", "mars", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "desember"];
+
 function renderCal() {
+  document.querySelectorAll("#calModes button").forEach((b) => b.classList.toggle("active", b.dataset.mode === calMode));
+  $("#calWeek").hidden = calMode !== "week";
+  $("#calMonth").hidden = calMode !== "month";
+  $("#calList").hidden = calMode !== "list";
+  if (calMode === "month") renderMonth();
+  else if (calMode === "list") renderAgenda();
+  else renderWeekCal();
+}
+
+// ---- Måned ----
+function monthStart(offset) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  return d;
+}
+const monthOffsetOf = (iso) => {
+  const now = new Date();
+  return (+iso.slice(0, 4) - now.getFullYear()) * 12 + (+iso.slice(5, 7) - 1 - now.getMonth());
+};
+
+function renderMonth() {
+  const first = monthStart(monOffset);
+  const y = first.getFullYear(), m = first.getMonth();
+  const today = isoDate(new Date());
+  if (!selDay || monthOffsetOf(selDay) !== monOffset) selDay = monOffset === 0 ? today : isoDate(first);
+  $("#monLabel").textContent = `${MONTHS_LONG[m][0].toUpperCase() + MONTHS_LONG[m].slice(1)} ${y}`;
+  $("#monThis").hidden = monOffset === 0;
+
+  const lead = (first.getDay() + 6) % 7;
+  const daysIn = new Date(y, m + 1, 0).getDate();
+  const cells = Math.ceil((lead + daysIn) / 7) * 7;
+  const grid = [];
+  for (let i = 0; i < cells; i++) {
+    const d = new Date(y, m, 1 - lead + i, 12);
+    const iso = isoDate(d);
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "mcell" + (d.getMonth() !== m ? " other" : "") + (redDay(iso) ? " red" : "") + (d.getDay() === 0 ? " sun" : "") + (iso === selDay ? " sel" : "");
+    const evs = eventsOn(iso).filter((e) => !e.holiday);
+    const dots = evs.slice(0, 3).map((e) => `<i class="${e.kind === "bday" ? "bday" : e.feed ? "ext" : ""}"></i>`).join("")
+      + (evs.length > 3 ? '<i class="more">+</i>' : "");
+    b.innerHTML = `<span class="num">${d.getDate()}</span><span class="dots">${dots}</span>`;
+    b.setAttribute("aria-label", `${d.getDate()}. ${MONTHS_LONG[d.getMonth()]}, ${evs.length} avtaler`);
+    b.onclick = () => {
+      selDay = iso;
+      monOffset = monthOffsetOf(iso);
+      renderMonth();
+    };
+    grid.push(b);
+  }
+  $("#monGrid").replaceChildren(...grid);
+
+  // Valgt dag under rutenettet
+  const sd = new Date(selDay + "T12:00:00");
+  $("#monDayTitle").textContent = `${DAYS[(sd.getDay() + 6) % 7]} ${sd.getDate()}. ${MONTHS_ABBR[sd.getMonth()]}`;
+  $("#monDayTitle").classList.toggle("red-day", redDay(selDay));
+  const evs = eventsOn(selDay);
+  const now = new Date();
+  const nowMin = selDay === today ? now.getHours() * 60 + now.getMinutes() : null;
+  $("#monEvents").replaceChildren(...evs.map((ev) => evItem(ev, nowMin, selDay)));
+  $("#monEmpty").hidden = evs.length > 0;
+}
+
+$("#monPrev").onclick = () => { monOffset--; selDay = null; renderMonth(); };
+$("#monNext").onclick = () => { monOffset++; selDay = null; renderMonth(); };
+$("#monThis").onclick = () => { monOffset = 0; selDay = null; renderMonth(); };
+$("#monAdd").onclick = () => openEvent({ date: selDay });
+
+// ---- Kommende ----
+function renderAgenda() {
+  const now = new Date();
+  const today = isoDate(now);
+  const groups = [];
+  for (let i = 0; i < agendaDays; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, 12);
+    const iso = isoDate(d);
+    // Merkedager er ikke aktiviteter; røde dager tas med.
+    const evs = eventsOn(iso).filter((e) => !e.holiday || e.red);
+    if (!evs.length) continue;
+    const sec = document.createElement("section");
+    sec.className = "aday";
+    const h = document.createElement("h3");
+    const name = `${DAYS[(d.getDay() + 6) % 7]} ${d.getDate()}. ${MONTHS_ABBR[d.getMonth()]}` + (d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : "");
+    h.textContent = i === 0 ? `I dag · ${name}` : i === 1 ? `I morgen · ${name}` : name;
+    h.classList.toggle("red-day", redDay(iso));
+    const ul = document.createElement("ul");
+    ul.className = "evs";
+    ul.replaceChildren(...evs.map((ev) => evItem(ev, iso === today ? now.getHours() * 60 + now.getMinutes() : null, iso)));
+    sec.append(h, ul);
+    groups.push(sec);
+  }
+  if (!groups.length) {
+    const p = document.createElement("p");
+    p.className = "agenda-empty";
+    p.textContent = `Ingen avtaler de neste ${agendaDays} dagene.`;
+    groups.push(p);
+  }
+  $("#agenda").replaceChildren(...groups);
+  $("#agendaMore").hidden = agendaDays >= 400;
+  $("#agendaMore").textContent = `Vis flere (neste ${agendaDays + 60} dager)`;
+}
+$("#agendaMore").onclick = () => { agendaDays += 60; renderAgenda(); };
+
+document.querySelectorAll("#calModes button").forEach((b) => {
+  b.onclick = () => { calMode = b.dataset.mode; store.set("calmode", calMode); renderCal(); window.scrollTo(0, 0); };
+});
+
+// ---- Uke ----
+function renderWeekCal() {
   const { monday } = weekHeader(calOffset, "#calLabel", "#calDates", "#calThis");
   const cards = DAYS.map((name, i) => {
     const date = new Date(monday); date.setDate(monday.getDate() + i);
@@ -977,8 +1094,19 @@ function wireQuick({ form, input, preview, sum, more, help, from, after }) {
 
 wireQuick({
   form: "#qaForm", input: "#qaInput", preview: "#qaPreview", sum: "#qaSum", more: "#qaMore", help: "#qaHelp",
-  from: () => (calOffset > 0 ? isoDate(mondayOf(calOffset)) : isoDate(new Date())),
-  after: (ev) => { calOffset = weekOffsetOf(nextDate(ev)); renderCal(); },
+  from: () => {
+    const today = isoDate(new Date());
+    if (calMode === "month") return selDay && selDay > today ? selDay : today;
+    if (calMode === "week") return calOffset > 0 ? isoDate(mondayOf(calOffset)) : today;
+    return today;
+  },
+  after: (ev) => {
+    const d = nextDate(ev);
+    calOffset = weekOffsetOf(d);
+    monOffset = monthOffsetOf(d);
+    selDay = d;
+    renderCal();
+  },
 });
 
 // Lagring fra «Juster» tømmer hurtigfeltet det kom fra.
@@ -1032,7 +1160,7 @@ const homeAdder = wireAdd("#hAddForm", "#hAddInput", "#hSuggest", () => hList);
 wireQuick({
   form: "#hqaForm", input: "#hqaInput", preview: "#hqaPreview", sum: "#hqaSum", more: "#hqaMore",
   from: () => isoDate(new Date()),
-  after: (ev) => { calOffset = weekOffsetOf(nextDate(ev)); render(); },
+  after: (ev) => { const d = nextDate(ev); calOffset = weekOffsetOf(d); monOffset = monthOffsetOf(d); selDay = d; render(); },
 });
 document.querySelectorAll("[data-hlist]").forEach((b) => {
   b.onclick = () => { hList = b.dataset.hlist; store.set("hlist", hList); renderHome(); };
