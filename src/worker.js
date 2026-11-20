@@ -63,6 +63,8 @@ export class Family extends DurableObject {
       this.state.events ||= [];
       this.state.lists ||= [];
       this.state.feeds ||= [];
+      // Forslag (retter/avtaler) som er «glemt» med ×. Selve forslagene lages i appen fra lagrede data.
+      this.state.hidden ||= { dish: [], event: [] };
       // Avtaler hentet fra andre kalendere (lagres for seg, sendes med til appen).
       this.ext = (await ctx.storage.get("ext")) || {};
       if (!this.state.history) {
@@ -170,6 +172,13 @@ export class Family extends DurableObject {
         this.remember(text, msg.list);
         return true;
       }
+      case "hide": {
+        const kind = msg.kind === "dish" ? "dish" : msg.kind === "event" ? "event" : null;
+        const key = str(msg.text, 200).toLowerCase();
+        if (!kind || !key || st.hidden[kind].includes(key)) return false;
+        st.hidden[kind] = [...st.hidden[kind], key].slice(-300);
+        return true;
+      }
       case "forget": {
         const key = str(msg.text, 200).toLowerCase();
         if (!st.history[key]) return false;
@@ -252,6 +261,7 @@ export class Family extends DurableObject {
         // Sluttid bare hvis det er en starttid og den er senere enn den.
         let end = str(msg.end, 5);
         if (!time || !TIME_RE.test(end) || end <= time) end = "";
+        st.hidden.event = st.hidden.event.filter((k) => k !== title.toLowerCase()); // brukt igjen = vis igjen
         const repeat = cleanRepeat(msg.repeat, date);
         const data = { title, date, time, end, ts: Date.now() };
         if (repeat) data.repeat = repeat;
@@ -284,6 +294,7 @@ export class Family extends DurableObject {
         const dish = str(msg.dish, 200);
         let link = str(msg.link, 1000);
         if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
+        if (dish) st.hidden.dish = st.hidden.dish.filter((k) => k !== dish.toLowerCase()); // brukt igjen = vis igjen
         const week = (st.menu[msg.week] ||= {});
         if (dish || link) week[day] = { dish, link };
         else delete week[day];

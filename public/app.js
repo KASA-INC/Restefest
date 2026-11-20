@@ -14,7 +14,7 @@ const store = {
 };
 
 let code = null;
-let state = { items: [], menu: {}, events: [], history: {}, lists: [], feeds: [], ext: [], feedInfo: {} };
+let state = { items: [], menu: {}, events: [], history: {}, lists: [], feeds: [], ext: [], feedInfo: {}, hidden: { dish: [], event: [] } };
 let list = store.get("list") || "butikk";      // valgt liste i Lister-fanen
 let hList = store.get("hlist") || "butikk";    // valgt liste på startskjermen (butikk/oda)
 let view = "home"; // appen åpner alltid på startskjermen
@@ -326,34 +326,102 @@ function suggestions(q, l) {
   return hits.slice(0, 6);
 }
 
+// Rangerer forslag: starter med det man skriver > et ord starter med det > inneholder det (fra 3 tegn),
+// deretter mest brukt og sist brukt. `entries` er [{ text, n, ts, ... }].
+function rank(entries, q, extra = () => 0) {
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  const hits = [];
+  for (const h of entries) {
+    const key = h.text.toLowerCase();
+    if (key === q) continue;
+    let r;
+    if (key.startsWith(q)) r = 0;
+    else if (key.split(/[\s-]+/).some((w) => w.startsWith(q))) r = 1;
+    else if (q.length >= 3 && key.includes(q)) r = 2;
+    else continue;
+    hits.push({ ...h, r, x: extra(h) });
+  }
+  hits.sort((a, b) => a.r - b.r || a.x - b.x || b.n - a.n || String(b.ts).localeCompare(String(a.ts)));
+  return hits.slice(0, 6);
+}
+
+// Tegner forslagsbobler: trykk velger, × glemmer. Tastaturet holdes oppe.
+function chips(ul, hits, { pick, forget, sub }) {
+  ul.replaceChildren(...hits.map((h) => {
+    const li = document.createElement("li");
+    const p = document.createElement("button");
+    p.type = "button";
+    p.className = "pick";
+    p.textContent = h.text;
+    const extra = sub?.(h);
+    if (extra) { const s = document.createElement("span"); s.className = "sub"; s.textContent = extra; p.append(s); }
+    p.onclick = () => pick(h);
+    const f = document.createElement("button");
+    f.type = "button";
+    f.className = "forget";
+    f.innerHTML = icon("close", "i sm");
+    f.setAttribute("aria-label", `Glem «${h.text}»`);
+    f.onclick = () => forget(h);
+    for (const b of [p, f]) b.onpointerdown = (e) => e.preventDefault();
+    li.append(p, f);
+    return li;
+  }));
+}
+
+// Tidligere retter fra ukemenyen (med siste kjente oppskriftslenke).
+function dishHistory() {
+  const hidden = new Set(state.hidden?.dish || []);
+  const h = {};
+  for (const [week, days] of Object.entries(state.menu || {})) {
+    for (const [d, e] of Object.entries(days)) {
+      if (!e?.dish) continue;
+      const key = e.dish.toLowerCase();
+      if (hidden.has(key)) continue;
+      const ts = week + d;
+      const x = (h[key] ||= { text: e.dish, n: 0, ts: "", link: "" });
+      x.n++;
+      if (ts >= x.ts) { x.ts = ts; x.text = e.dish; if (e.link) x.link = e.link; }
+      else if (!x.link && e.link) x.link = e.link;
+    }
+  }
+  return Object.values(h);
+}
+
+// Tidligere avtaler (med klokkeslett fra siste gang).
+function eventHistory() {
+  const hidden = new Set(state.hidden?.event || []);
+  const h = {};
+  for (const e of state.events || []) {
+    const key = e.title.toLowerCase();
+    if (hidden.has(key)) continue;
+    const x = (h[key] ||= { text: e.title, n: 0, ts: 0, time: "", end: "" });
+    x.n++;
+    if ((e.ts || 0) >= x.ts) Object.assign(x, { ts: e.ts || 0, text: e.title, time: e.time || "", end: e.end || "" });
+  }
+  return Object.values(h);
+}
+
+const timeText = (h) => (h.time ? h.time + (h.end ? "–" + h.end : "") : "");
+function hideSuggestion(kind, text) {
+  state.hidden ||= { dish: [], event: [] };
+  state.hidden[kind] = [...(state.hidden[kind] || []), text.toLowerCase()];
+  send({ t: "hide", kind, text });
+}
+
 // Kobler et «legg til vare»-felt med forslag. Brukes både i handlelisten og på startskjermen.
 function wireAdd(formSel, inputSel, suggestSel, getList = () => list) {
   const input = $(inputSel);
   const reset = () => { input.value = ""; input.focus(); refresh(); };
   function refresh() {
-    const hits = suggestions(input.value, getList());
-    $(suggestSel).replaceChildren(...hits.map((h) => {
-      const li = document.createElement("li");
-      const pick = document.createElement("button");
-      pick.type = "button";
-      pick.className = "pick";
-      pick.textContent = h.text;
-      pick.onclick = () => { addItem(h.text, getList()); reset(); };
-      const forget = document.createElement("button");
-      forget.type = "button";
-      forget.className = "forget";
-      forget.innerHTML = icon("close", "i sm");
-      forget.setAttribute("aria-label", `Glem «${h.text}»`);
-      forget.onclick = () => {
+    chips($(suggestSel), suggestions(input.value, getList()), {
+      pick: (h) => { addItem(h.text, getList()); reset(); },
+      forget: (h) => {
         delete state.history[h.text.toLowerCase()];
         refresh();
         send({ t: "forget", text: h.text });
-      };
-      // Hindre at tastaturet lukkes når man trykker på et forslag.
-      for (const b of [pick, forget]) b.onpointerdown = (e) => e.preventDefault();
-      li.append(pick, forget);
-      return li;
-    }));
+      },
+    });
   }
   input.oninput = refresh;
   $(formSel).onsubmit = (e) => { e.preventDefault(); addItem(input.value, getList()); reset(); };
@@ -455,6 +523,25 @@ const normUrl = (u) => (u && !/^https?:\/\//i.test(u) ? "https://" + u : u);
 
 function wireDinner(dish, btn, where) {
   let timer;
+  // Forslag fra tidligere retter, rett under feltet.
+  const sug = document.createElement("ul");
+  sug.className = "suggest dish-suggest";
+  dish.parentElement.after(sug);
+  const suggest = () => {
+    if (document.activeElement !== dish) return sug.replaceChildren();
+    chips(sug, rank(dishHistory(), dish.value), {
+      sub: (h) => (h.link ? "oppskrift" : ""),
+      pick: (h) => {
+        dish.value = h.text;
+        save(current().link || h.link || "");
+        sug.replaceChildren();
+        dish.blur();
+      },
+      forget: (h) => { hideSuggestion("dish", h.text); suggest(); },
+    });
+  };
+  dish.onfocus = suggest;
+  dish.onblur = () => setTimeout(suggest, 150);
   const current = () => { const { key, day } = where(); return state.menu[key]?.[day] || {}; };
   const save = (link = current().link || "") => {
     clearTimeout(timer);
@@ -481,6 +568,7 @@ function wireDinner(dish, btn, where) {
     }
     clearTimeout(timer);
     timer = setTimeout(() => save(), 600);
+    suggest();
   };
   dish.onchange = () => save();
   dish.onkeydown = (e) => { if (e.key === "Enter") dish.blur(); };
@@ -582,6 +670,23 @@ function renderCal() {
 
 let editing = null;
 let pickedDays = [];
+
+function suggestTitle() {
+  const inp = $("#evTitle");
+  if (document.activeElement !== inp) return $("#evSuggest").replaceChildren();
+  chips($("#evSuggest"), rank(eventHistory(), inp.value), {
+    sub: timeText,
+    pick: (h) => {
+      inp.value = h.text;
+      if (!$("#evTime").value && h.time) { $("#evTime").value = h.time; $("#evEnd").value = h.end || ""; syncTimeUi(); }
+      $("#evSuggest").replaceChildren();
+    },
+    forget: (h) => { hideSuggestion("event", h.text); suggestTitle(); },
+  });
+}
+$("#evTitle").oninput = suggestTitle;
+$("#evTitle").onfocus = suggestTitle;
+$("#evTitle").onblur = () => setTimeout(suggestTitle, 150);
 
 const fmtLong = (iso) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -727,10 +832,29 @@ const quickInputs = [];
 function wireQuick({ form, input, preview, sum, more, help, from, after }) {
   const inp = $(input);
   quickInputs.push(inp);
+  const sug = document.createElement("ul");
+  sug.className = "suggest";
+  $(form).after(sug);
+  const suggest = () => {
+    if (document.activeElement !== inp) { sug.replaceChildren(); return 0; }
+    const hits = rank(eventHistory(), inp.value);
+    chips(sug, hits, {
+      sub: timeText,
+      pick: (h) => {
+        inp.value = h.text + (h.time ? ` ${h.time}${h.end ? "-" + h.end : ""}` : "") + " ";
+        refresh();
+        inp.focus();
+      },
+      forget: (h) => { hideSuggestion("event", h.text); refresh(); },
+    });
+    return hits.length;
+  };
   const parse = () => parseQuick(inp.value, { today: new Date(), from: from() });
   function refresh() {
+    const nSug = suggest();
     const text = inp.value.trim();
-    const ev = text ? parse() : null;
+    // Mens man bare har skrevet starten på et ord og har forslag, er forhåndsvisningen bare støy.
+    const ev = text && !(nSug && !/\s/.test(text)) ? parse() : null;
     if (help) $(help).hidden = !!text || document.activeElement !== inp;
     $(preview).hidden = !ev;
     if (!ev) return;

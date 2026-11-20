@@ -357,3 +357,11 @@ input:disabled { opacity: .45; }
 .rlink .i { width: 21px; height: 21px; }
 .rlink.on { opacity: 1; border: 0; background: var(--accent-soft); color: var(--accent); }
 .week-nav { margin-bottom: 6px; }
+
+/* Forslag fra tidligere retter/avtaler */
+.suggest .pick .sub { margin-left: 6px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.dish-suggest { margin: 4px 0 2px; gap: 6px; }
+.dish-suggest .pick { padding: 6px 2px 6px 12px; font-size: 15px; }
+.dish-suggest .forget { padding: 6px 10px 6px 4px; }
+#evSuggest { margin: -4px 0 0; }
+.card .suggest:empty, #evSuggest:empty { display: none; }
