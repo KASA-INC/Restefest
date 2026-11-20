@@ -1124,17 +1124,19 @@ $("#calThis").onclick = () => { calOffset = 0; renderCal(); };
 // Norske månedsforkortelser – punktum bare når ordet faktisk er forkortet.
 const MONTHS_ABBR = ["jan.", "feb.", "mars", "apr.", "mai", "juni", "juli", "aug.", "sep.", "okt.", "nov.", "des."];
 
-// Krymper overskriften akkurat nok til at den får plass på én linje (maks 28 px).
+// Krymper overskriften akkurat nok til at den får plass på én linje.
 function fitTitle() {
   const el = $("#title");
   el.style.fontSize = "";
-  let size = 28;
+  let size = parseFloat(getComputedStyle(el).fontSize); // utgangspunkt: størrelsen i CSS
   while (el.scrollWidth > el.clientWidth + 1 && size > 16) {
     size -= 1;
     el.style.fontSize = size + "px";
   }
 }
 window.addEventListener("resize", () => { if (view === "home") fitTitle(); });
+// Tilpass på nytt når skriftene er lastet (målingen blir feil med reserveskrift).
+document.fonts?.ready.then(() => { if (view === "home") fitTitle(); });
 let shownClock = "";
 function tickClock(force = false) {
   if (view !== "home") return;

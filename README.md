@@ -36,7 +36,7 @@ npm run deploy     # gir en adresse som https://uka.<konto>.workers.dev
 
 ## Skrifter og farger
 
-Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett: [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
+Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett: [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (de største titlene), [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
 
 ## Ikoner
 
