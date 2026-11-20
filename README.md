@@ -34,6 +34,10 @@ npm run deploy     # gir en adresse som https://uka.<konto>.workers.dev
 
 Åpne adressen i Safari på iPhone → Del → **Legg til på Hjem-skjerm**.
 
+## Skrifter og farger
+
+Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett: [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
+
 ## Ikoner
 
 Appikon og ikoner i appen er fra [UIX Sharp](https://github.com/mdrakibshekh/uix-icons) av MD Rakib Shekh (MIT-lisens), hentet via Iconify. Appikonet bruker `uix-sharp:calendar-heart`.

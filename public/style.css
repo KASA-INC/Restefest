@@ -1,27 +1,40 @@
+/* Skrifter (SIL Open Font License): Fraunces til overskrifter, Lora til tekst. */
+@font-face { font-family: "Fraunces"; src: url(fonts/fraunces-latin-full-normal.woff2) format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Fraunces"; src: url(fonts/fraunces-latin-wght-italic.woff2) format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Lora"; src: url(fonts/lora-latin-wght-normal.woff2) format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Lora"; src: url(fonts/lora-latin-wght-italic.woff2) format("woff2"); font-weight: 400 700; font-style: italic; font-display: swap; }
+
 :root {
-  --bg: #f6f5f1;
-  --surface: #ffffff;
-  --text: #1d1f22;
-  --muted: #6b6f76;
-  --line: #e4e2dc;
-  --accent: #2f7d4f;
-  --accent-ink: #ffffff;
-  --accent-soft: #e3f0e7;
-  --danger: #b3261e;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  /* Varm palett: krem, espresso og terrakotta */
+  --bg: #f6efe4;
+  --surface: #fffaf3;
+  --text: #3a2a20;
+  --muted: #8c7666;
+  --line: #eaddcb;
+  --accent: #b5562f;
+  --accent-ink: #fff8ef;
+  --accent-soft: #f6e2d3;
+  --danger: #a3322f;
+  --honey: #c9922f;
+  --ok: #7f9461;
+  --shadow: 0 1px 2px rgb(110 70 30 / 0.06), 0 6px 18px rgb(110 70 30 / 0.06);
+  --serif: "Fraunces", "Iowan Old Style", "Palatino", Georgia, serif;
+  --text-serif: "Lora", "Iowan Old Style", Georgia, serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16181b;
-    --surface: #212429;
-    --text: #eceae4;
-    --muted: #9a9ea6;
-    --line: #2f333a;
-    --accent: #5fbf85;
-    --accent-ink: #0f1a13;
-    --accent-soft: #23362a;
-    --danger: #ff8a80;
+    --bg: #1d1712;
+    --surface: #29211a;
+    --text: #f2e7d9;
+    --muted: #b29e8b;
+    --line: #3b3027;
+    --accent: #e3895e;
+    --accent-ink: #26170f;
+    --accent-soft: #3e2a1f;
+    --danger: #f08a7c;
+    --honey: #e0b25e;
+    --ok: #a3b882;
     --shadow: none;
     color-scheme: dark;
   }
@@ -32,7 +45,7 @@ html, body { margin: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font: 17px/1.45 var(--text-serif);
   -webkit-tap-highlight-color: transparent;
   min-height: 100dvh;
 }
@@ -103,7 +116,7 @@ input:focus, select:focus { border-color: var(--accent); outline: none; }
   background: var(--bg);
 }
 .top h1 { font-size: 28px; flex: 1; }
-.conn { width: 9px; height: 9px; border-radius: 50%; background: #c9a227; }
+.conn { width: 9px; height: 9px; border-radius: 50%; background: var(--honey); }
 .conn.on { background: var(--accent); }
 .conn.off { background: var(--danger); }
 main { padding: 0 16px; }
@@ -187,7 +200,7 @@ dialog {
   background: var(--bg); color: var(--text);
 }
 @media (min-width: 600px) { dialog { margin: auto; border-radius: 18px; } }
-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+dialog::backdrop { background: rgb(45 28 18 / 0.45); }
 .sheet { padding: 18px 16px calc(24px + env(safe-area-inset-bottom)); display: grid; gap: 10px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; }
 .sheet h3 { margin-top: 14px; font-size: 16px; }
@@ -401,7 +414,7 @@ input:disabled { opacity: .45; }
 .mcell .dots { display: flex; gap: 3px; height: 6px; }
 .mcell .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .mcell .dots i.ext { background: var(--muted); }
-.mcell .dots i.bday { background: #d4883a; }
+.mcell .dots i.bday { background: var(--honey); }
 .mcell .dots i.more { background: none; width: auto; height: auto; font-size: 9px; line-height: 6px; color: var(--muted); font-style: normal; }
 .mday { margin-top: 12px; }
 .mday h2 { font-size: 17px; }
@@ -416,3 +429,64 @@ input:disabled { opacity: .45; }
 .mcell { aspect-ratio: auto; height: 46px; padding: 4px 2px 5px; font-size: 15px; }
 .mgrid { gap: 3px; }
 .mcell.sun .num { color: var(--danger); }
+
+/* ================= Varm stil ================= */
+body { background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 60%, var(--bg)) 0, var(--bg) 320px) fixed, var(--bg); }
+
+/* Overskrifter og «store» tekster i Fraunces – myk og elegant */
+h1, h2, h3, #title, .week-label, .day-name, .mlabel b, .card-head h2, .sheet-head h2,
+.code-box code, .join-card h1, .dinner .dish, .mcell .num, .qa-sum b, .feed-list b {
+  font-family: var(--serif);
+  font-variation-settings: "SOFT" 100, "WONK" 0;
+}
+.top h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.01em; }
+#title.clock .time { font-style: italic; font-weight: 500; }
+.join-card h1 { font-size: 44px; font-weight: 600; letter-spacing: -0.02em; }
+.week-label { font-weight: 600; font-size: 20px; }
+.day-name, .mlabel b { font-weight: 600; }
+.card-head h2 { font-size: 19px; font-weight: 600; }
+.dinner .dish { font-size: 17px; font-weight: 500; }
+.dinner .dish::placeholder { font-style: italic; font-weight: 400; }
+input::placeholder { color: color-mix(in srgb, var(--muted) 85%, transparent); }
+.home-date { font-family: var(--serif); font-style: italic; font-size: 16px; }
+
+/* Små etiketter: kursiv i stedet for STORE BOKSTAVER */
+.done-head h2, .agenda h3, .tomorrow h2 {
+  font-family: var(--serif); font-style: italic; text-transform: none; letter-spacing: 0;
+  font-size: 16px; font-weight: 500;
+}
+.agenda h3 { color: var(--accent); }
+.tomorrow h2 { color: var(--muted); }
+
+/* Mykere flater */
+.card, .day, .mrow, .items, .agenda .aday { border-radius: 18px; box-shadow: var(--shadow); }
+.mrow { border-radius: 16px; }
+.mcell { border-radius: 12px; }
+input, select { border-radius: 14px; background: var(--surface); }
+.dinner .dish { background: color-mix(in srgb, var(--bg) 70%, var(--surface)); }
+.primary, .btn, .danger { border-radius: 14px; font-family: var(--text-serif); font-weight: 600; }
+.primary { box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent); }
+.seg, .mini-seg { background: color-mix(in srgb, var(--line) 75%, var(--bg)); }
+.seg button, .mini-seg button { font-family: var(--serif); }
+.pills button { font-family: var(--serif); font-weight: 500; }
+.suggest li { background: var(--accent-soft); }
+
+/* Tab-baren som et varmt papirark */
+.tabbar { background: color-mix(in srgb, var(--surface) 88%, transparent); border-top-color: var(--line); }
+.tabbar button { font-family: var(--serif); font-size: 13px; }
+.tabbar button.active { font-weight: 600; }
+
+/* Avtaler */
+.ev-time { font-family: var(--serif); font-weight: 600; }
+.now { font-family: var(--text-serif); }
+.toast { font-family: var(--text-serif); border-radius: 14px; }
+
+/* Toppen: gjennomskinnelig, så den varme bakgrunnen flyter under */
+.top {
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+.home-date { margin: 2px 2px 16px; }
+/* Tilkobling: rolig salviegrønn når alt er synkronisert */
+.conn.on { background: var(--ok); }
