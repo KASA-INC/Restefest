@@ -322,6 +322,7 @@ function renderMenu() {
         <input class="link" placeholder="Link til oppskrift" type="url" inputmode="url" autocapitalize="off" maxlength="1000" enterkeyhint="done">
         <a class="recipe" target="_blank" rel="noopener" hidden>Åpne oppskrift ↗</a>`;
       card.querySelector(".day-name").textContent = name;
+      if (i === 4) card.querySelector(".dish").placeholder = "Taco"; // fredagstaco
       card.querySelector(".muted").textContent = fmt(date);
       const dish = card.querySelector(".dish");
       const link = card.querySelector(".link");
