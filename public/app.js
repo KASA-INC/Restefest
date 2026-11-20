@@ -307,7 +307,6 @@ function renderMenu() {
   $("#weekDates").textContent = `${fmt(monday)} – ${fmt(sunday)}`;
   $("#thisWeek").hidden = weekOffset === 0;
   const week = state.menu[key] || {};
-  const todayKey = new Date().toDateString();
 
   // Bygg kortene på nytt bare når uken endres, ellers oppdater verdier
   // (slik at ingen mister markøren mens noen andre skriver).
@@ -316,7 +315,7 @@ function renderMenu() {
     const cards = DAYS.map((name, i) => {
       const date = new Date(monday); date.setDate(monday.getDate() + i);
       const card = document.createElement("div");
-      card.className = "day" + (date.toDateString() === todayKey ? " today" : "");
+      card.className = "day";
       card.innerHTML = `
         <div class="day-head"><span class="day-name"></span><span class="muted small"></span></div>
         <input class="dish" placeholder="Rett" maxlength="200" enterkeyhint="next">

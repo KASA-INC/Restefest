@@ -169,7 +169,6 @@ main { padding: 0 16px; }
 .week-label { font-weight: 700; font-size: 19px; }
 .days { display: grid; gap: 10px; padding-bottom: 12px; }
 .day { background: var(--surface); border-radius: 14px; padding: 12px 14px 14px; box-shadow: var(--shadow); display: grid; gap: 8px; }
-.day.today { outline: 2px solid var(--accent); }
 .day-head { display: flex; justify-content: space-between; align-items: baseline; }
 .day-name { font-weight: 700; }
 .day input { padding: 10px 12px; }
