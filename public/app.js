@@ -31,10 +31,10 @@ const DISH = [
   "ramen", "suppe", "omelett", "toast", "salat", "biff", "fiskegrateng", "fiskepinne", "tikkamasala", "quesadilla",
 ];
 function newCode() {
-  const r = crypto.getRandomValues(new Uint32Array(3));
-  return `${ADJ[r[0] % ADJ.length]}-${DISH[r[1] % DISH.length]}-${100 + (r[2] % 900)}`;
+  const r = crypto.getRandomValues(new Uint32Array(2));
+  return `${ADJ[r[0] % ADJ.length]}-${DISH[r[1] % DISH.length]}`;
 }
-// Vis koden pent: "svett-taco-427" -> "Svett-Taco-427"
+// Vis koden pent: "svett-taco" -> "Svett-Taco"
 const prettyCode = (c) => c.replace(/(^|-)(\p{L})/gu, (_, d, l) => d + l.toUpperCase());
 const cleanCode = (s) => s.normalize("NFC").trim().toLowerCase().replace(/\s+/g, "-");
 
