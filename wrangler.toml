@@ -1,4 +1,4 @@
-name = "handleliste"
+name = "uka"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
 

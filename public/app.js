@@ -1070,7 +1070,7 @@ $("#feedAdd").onclick = () => {
 };
 
 $("#shareBtn").onclick = async () => {
-  const data = { title: "Handleliste", text: `Bli med i handlelisten vår (kode: ${prettyCode(code)})`, url: inviteUrl() };
+  const data = { title: "Uka", text: `Bli med i familien vår i Uka (kode: ${prettyCode(code)})`, url: inviteUrl() };
   if (navigator.share) { try { await navigator.share(data); } catch {} }
   else copy(inviteUrl(), "Lenke kopiert");
 };

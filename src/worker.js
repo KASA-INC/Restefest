@@ -112,7 +112,7 @@ export class Family extends DurableObject {
       await Promise.all(due.map(async (f) => {
         const prev = this.ext[f.id];
         try {
-          const res = await fetch(f.url, { headers: { "User-Agent": "Handleliste-kalender/1.0", Accept: "text/calendar,*/*" } });
+          const res = await fetch(f.url, { headers: { "User-Agent": "Uka-kalender/1.0", Accept: "text/calendar,*/*" } });
           if (!res.ok) throw new Error(`Svarte ${res.status}`);
           const text = await res.text();
           if (text.length > MAX_ICS_BYTES) throw new Error("Kalenderen er for stor");
@@ -325,10 +325,10 @@ export class Family extends DurableObject {
     const lines = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Handleliste//Familie//NO",
+      "PRODID:-//Uka//Familie//NO",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
-      `X-WR-CALNAME:${kind === "menu" ? "Middag" : "Familiekalender"}`,
+      `X-WR-CALNAME:${kind === "menu" ? "Uka – middag" : "Uka – kalender"}`,
       "X-WR-TIMEZONE:Europe/Oslo",
       "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
       "X-PUBLISHED-TTL:PT1H",

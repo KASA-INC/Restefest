@@ -1,6 +1,6 @@
-# Handleliste
+# Uka
 
-Enkel familie-handleliste med sanntidssynk via **familiekode**.
+Familiens uke på ett sted – handleliste, ukemeny og kalender – med sanntidssynk via **familiekode**.
 
 - **I dag** (startskjerm): dagens middag, dagens aktiviteter (pågående merket «nå», ferdige tonet ned), de fem øverste på handlelisten og et blikk på i morgen. Alt kan legges til og krysses av direkte herfra.
 - **Handleliste** med to faner: *I butikk* og *Oda*. Trykk for å krysse av, «Fjern handlede» rydder.
@@ -27,11 +27,11 @@ npm run dev        # http://localhost:8787
 
 ```bash
 npx wrangler login
-npm run deploy     # gir en adresse som https://handleliste.<konto>.workers.dev
+npm run deploy     # gir en adresse som https://uka.<konto>.workers.dev
 ```
 
 Åpne adressen i Safari på iPhone → Del → **Legg til på Hjem-skjerm**.
 
 ## Ikoner
 
-Appikon og ikoner i appen er fra [UIX Sharp](https://github.com/mdrakibshekh/uix-icons) av MD Rakib Shekh (MIT-lisens), hentet via Iconify. Appikonet bruker `uix-sharp:category-grocery`.
+Appikon og ikoner i appen er fra [UIX Sharp](https://github.com/mdrakibshekh/uix-icons) av MD Rakib Shekh (MIT-lisens), hentet via Iconify. Appikonet bruker `uix-sharp:calendar-heart`.
