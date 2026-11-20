@@ -14,8 +14,9 @@ const store = {
 };
 
 let code = null;
-let state = { items: [], menu: {}, events: [], history: {} };
-let list = store.get("list") || "butikk";
+let state = { items: [], menu: {}, events: [], history: {}, lists: [], feeds: [], ext: [], feedInfo: {} };
+let list = store.get("list") || "butikk";      // valgt liste i Lister-fanen
+let hList = store.get("hlist") || "butikk";    // valgt liste på startskjermen (butikk/oda)
 let view = "home"; // appen åpner alltid på startskjermen
 // Ukemenyen viser inneværende uke mandag–torsdag. Fra fredag kl. 00.00
 // (da bestilles Oda) viser den neste uke.
@@ -98,6 +99,7 @@ function connect() {
   ws.onopen = () => {
     retry = 0;
     setConn("on");
+    ws.send(JSON.stringify({ t: "feedRefresh" }));
     for (const m of queue) ws.send(JSON.stringify(m));
     queue = [];
     clearInterval(pingTimer);
@@ -110,6 +112,7 @@ function connect() {
       state = msg.state;
       store.set("state:" + code, JSON.stringify(state));
       render();
+      if ($("#settings").open) renderFeeds();
     }
   };
   ws.onclose = () => {
@@ -142,7 +145,7 @@ document.addEventListener("visibilitychange", () => {
     if (weekOffset === shownBase && menuBase() !== shownBase) {
       weekOffset = shownBase = menuBase();
     }
-    if (code) render();
+    if (code) { render(); send({ t: "feedRefresh" }); }
   }
 });
 window.addEventListener("online", () => { retry = 0; connect(); });
@@ -155,7 +158,7 @@ function showView(v) {
   $("#view-list").hidden = v !== "list";
   $("#view-menu").hidden = v !== "menu";
   $("#view-cal").hidden = v !== "cal";
-  $("#title").textContent = { home: greeting(), list: "Handleliste", menu: "Ukemeny", cal: "Kalender" }[v];
+  $("#title").textContent = { home: greeting(), list: "Lister", menu: "Ukemeny", cal: "Kalender" }[v];
   window.scrollTo(0, 0);
   document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
 }
@@ -174,12 +177,21 @@ function itemEl(it) {
   const btn = document.createElement("button");
   btn.className = "check";
   btn.innerHTML = '<span class="box"></span><span class="txt"></span>';
-  btn.querySelector(".txt").textContent = it.text;
+  // En lenke i teksten (f.eks. på en ønskeliste) vises som nettstedets navn + egen knapp.
+  const url = it.text.match(/https?:\/\/\S+/i)?.[0];
+  const txt = btn.querySelector(".txt");
+  if (url) {
+    const rest = it.text.replace(url, "").trim();
+    let host = url;
+    try { host = new URL(url).hostname.replace(/^www\./, ""); } catch {}
+    txt.textContent = rest || host;
+    if (rest) { const h = document.createElement("span"); h.className = "host"; h.textContent = " · " + host; txt.append(h); }
+  } else txt.textContent = it.text;
   btn.onclick = () => {
     it.done = !it.done; // umiddelbar respons lokalt
     render();
     send({ t: "toggle", id: it.id, done: it.done });
-    if (it.done) toast(`«${it.text}» er handlet`, "Angre", () => {
+    if (it.done) toast(`«${it.text}» er ${isShopping(it.list) ? "handlet" : "krysset av"}`, "Angre", () => {
       it.done = false;
       render();
       send({ t: "toggle", id: it.id, done: false });
@@ -195,27 +207,87 @@ function itemEl(it) {
     send({ t: "del", id: it.id });
     toast(`«${it.text}» er slettet`, "Angre", () => addItem(it.text, it.list));
   };
-  li.append(btn, del);
+  if (url) {
+    const a = document.createElement("a");
+    a.className = "item-link";
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.setAttribute("aria-label", "Åpne lenke");
+    a.innerHTML = icon("external-link");
+    li.append(btn, a, del);
+  } else li.append(btn, del);
   return li;
 }
 
+const BUILTIN = [{ id: "butikk", name: "I butikk" }, { id: "oda", name: "Oda" }];
+const allLists = () => [...BUILTIN, ...(state.lists || [])];
+const isShopping = (l) => l === "butikk" || l === "oda";
+const listName = (l) => allLists().find((x) => x.id === l)?.name || "Listen";
+
 function renderList() {
-  document.querySelectorAll(".seg button").forEach((b) => b.classList.toggle("active", b.dataset.list === list));
-  for (const l of ["butikk", "oda"]) {
-    const n = state.items.filter((i) => i.list === l && !i.done).length;
-    $(`[data-count="${l}"]`).textContent = n ? `(${n})` : "";
-  }
+  if (!allLists().some((l) => l.id === list)) list = "butikk"; // listen er slettet
+  const pills = allLists().map((l) => {
+    const b = document.createElement("button");
+    b.setAttribute("role", "tab");
+    b.className = l.id === list ? "active" : "";
+    const n = state.items.filter((i) => i.list === l.id && !i.done).length;
+    b.textContent = l.name;
+    if (n) { const c = document.createElement("span"); c.className = "count"; c.textContent = ` (${n})`; b.append(c); }
+    b.onclick = () => { list = l.id; store.set("list", list); renderList(); };
+    return b;
+  });
+  const add = document.createElement("button");
+  add.className = "new-list";
+  add.innerHTML = icon("plus") + "Ny liste";
+  add.onclick = newList;
+  $("#listTabs").replaceChildren(...pills, add);
+  $("#listTabs .active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+
   const mine = state.items.filter((i) => i.list === list);
   const todo = mine.filter((i) => !i.done);
   const done = mine.filter((i) => i.done).sort((a, b) => b.ts - a.ts);
   $("#todo").replaceChildren(...todo.map(itemEl));
   $("#done").replaceChildren(...done.map(itemEl));
   $("#doneWrap").hidden = !done.length;
+  $("#doneTitle").textContent = isShopping(list) ? "Handlet" : "Ferdig";
+  $("#clearBtn").textContent = isShopping(list) ? "Fjern handlede" : "Fjern ferdige";
   $("#empty").hidden = mine.length > 0;
   $("#odaLink").hidden = list !== "oda";
-  $("#addInput").placeholder = list === "oda" ? "Legg til på Oda-listen…" : "Legg til vare…";
+  $("#listTools").hidden = isShopping(list);
+  $("#addInput").placeholder = list === "butikk" ? "Legg til vare…" : `Legg til på ${listName(list)}…`;
   listAdder.refresh();
 }
+
+function newList() {
+  const name = prompt("Navn på den nye listen", "Ønskeliste")?.trim();
+  if (!name) return;
+  const id = "l-" + crypto.randomUUID().slice(0, 13);
+  state.lists = [...(state.lists || []), { id, name }];
+  send({ t: "listAdd", id, name });
+  list = id;
+  store.set("list", list);
+  renderList();
+  $("#addInput").focus();
+}
+
+$("#renameList").onclick = () => {
+  const l = state.lists.find((x) => x.id === list);
+  const name = l && prompt("Nytt navn på listen", l.name)?.trim();
+  if (!name) return;
+  l.name = name;
+  send({ t: "listRename", id: l.id, name });
+  renderList();
+};
+$("#deleteList").onclick = () => {
+  const l = state.lists.find((x) => x.id === list);
+  if (!l || !confirm(`Slette «${l.name}» og alt som står på den? Dette gjelder for hele familien.`)) return;
+  state.lists = state.lists.filter((x) => x.id !== l.id);
+  state.items = state.items.filter((i) => i.list !== l.id);
+  send({ t: "listDel", id: l.id });
+  list = "butikk";
+  render();
+};
 
 // Legg til vare. Står den allerede på listen, gjøres ingenting;
 // er den krysset av, hentes den tilbake i stedet for å lage en kopi.
@@ -255,18 +327,18 @@ function suggestions(q, l) {
 }
 
 // Kobler et «legg til vare»-felt med forslag. Brukes både i handlelisten og på startskjermen.
-function wireAdd(formSel, inputSel, suggestSel) {
+function wireAdd(formSel, inputSel, suggestSel, getList = () => list) {
   const input = $(inputSel);
   const reset = () => { input.value = ""; input.focus(); refresh(); };
   function refresh() {
-    const hits = suggestions(input.value, list);
+    const hits = suggestions(input.value, getList());
     $(suggestSel).replaceChildren(...hits.map((h) => {
       const li = document.createElement("li");
       const pick = document.createElement("button");
       pick.type = "button";
       pick.className = "pick";
       pick.textContent = h.text;
-      pick.onclick = () => { addItem(h.text); reset(); };
+      pick.onclick = () => { addItem(h.text, getList()); reset(); };
       const forget = document.createElement("button");
       forget.type = "button";
       forget.className = "forget";
@@ -284,14 +356,11 @@ function wireAdd(formSel, inputSel, suggestSel) {
     }));
   }
   input.oninput = refresh;
-  $(formSel).onsubmit = (e) => { e.preventDefault(); addItem(input.value); reset(); };
+  $(formSel).onsubmit = (e) => { e.preventDefault(); addItem(input.value, getList()); reset(); };
   return { refresh };
 }
 const listAdder = wireAdd("#addForm", "#addInput", "#suggest");
 
-document.querySelectorAll(".seg button").forEach((b) => {
-  b.onclick = () => { list = b.dataset.list; store.set("list", list); render(); };
-});
 $("#clearBtn").onclick = () => {
   state.items = state.items.filter((i) => !(i.list === list && i.done));
   render();
@@ -410,8 +479,12 @@ $("#thisWeek").onclick = () => { weekOffset = menuBase(); renderMenu(); };
 
 // ---------- Kalender ----------
 // Avtaler (også gjentakende) som skjer på en dato, sortert: heldag først, så etter klokkeslett.
-const eventsOn = (iso) => (state.events || []).filter((e) => occursOn(e, iso))
-  .sort((a, b) => (a.time || "").localeCompare(b.time || "") || a.ts - b.ts);
+const eventsOn = (iso) => [
+  ...(state.events || []).filter((e) => occursOn(e, iso)),
+  ...(state.ext || []).filter((e) => e.date === iso),
+].sort((a, b) => (a.time || "").localeCompare(b.time || "") || (a.ts || 0) - (b.ts || 0));
+
+const feedName = (id) => (state.feeds || []).find((f) => f.id === id)?.name || "Annen kalender";
 
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -428,13 +501,24 @@ function evItem(ev, nowMin = null) {
   const title = b.querySelector(".ev-title");
   title.textContent = ev.title;
   if (ev.repeat) title.insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
+  if (ev.feed) {
+    const src = document.createElement("span");
+    src.className = "src";
+    src.textContent = feedName(ev.feed);
+    title.append(src);
+    b.classList.add("ext");
+  }
   if (nowMin !== null && ev.time) {
     const start = toMin(ev.time);
     const end = ev.end ? toMin(ev.end) : start + 60;
     if (nowMin >= end) b.classList.add("past");
     else if (nowMin >= start) title.insertAdjacentHTML("beforeend", '<span class="now">nå</span>');
   }
-  b.onclick = () => openEvent(ev);
+  b.onclick = (e) => {
+    e.stopPropagation();
+    if (ev.feed) toast(`Fra «${feedName(ev.feed)}» – endres der`);
+    else openEvent(ev);
+  };
   li.append(b);
   return li;
 }
@@ -684,16 +768,17 @@ function greeting() {
 // Dagens middag lagres alltid på dagens dato (uavhengig av hvilken uke ukemenyen viser).
 const todaySlot = () => { const d = new Date(); return { key: isoWeek(d).key, day: (d.getDay() + 6) % 7 }; };
 wireDinner($("#hDish"), $("#hLink"), todaySlot);
-const homeAdder = wireAdd("#hAddForm", "#hAddInput", "#hSuggest");
+const homeAdder = wireAdd("#hAddForm", "#hAddInput", "#hSuggest", () => hList);
 wireQuick({
   form: "#hqaForm", input: "#hqaInput", preview: "#hqaPreview", sum: "#hqaSum", more: "#hqaMore",
   from: () => isoDate(new Date()),
   after: (ev) => { calOffset = weekOffsetOf(ev.date); render(); },
 });
 document.querySelectorAll("[data-hlist]").forEach((b) => {
-  b.onclick = () => { list = b.dataset.hlist; store.set("list", list); render(); };
+  b.onclick = () => { hList = b.dataset.hlist; store.set("hlist", hList); renderHome(); };
 });
 document.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => showView(b.dataset.go)));
+$("#hMore").onclick = () => { list = hList; store.set("list", list); renderList(); showView("list"); };
 
 function renderHome() {
   const now = new Date();
@@ -711,18 +796,18 @@ function renderHome() {
   $("#hNoEvents").hidden = evs.length > 0;
 
   // De fem øverste på handlelisten
-  document.querySelectorAll("[data-hlist]").forEach((b) => b.classList.toggle("active", b.dataset.hlist === list));
+  document.querySelectorAll("[data-hlist]").forEach((b) => b.classList.toggle("active", b.dataset.hlist === hList));
   for (const l of ["butikk", "oda"]) {
     const n = state.items.filter((i) => i.list === l && !i.done).length;
     $(`[data-hcount="${l}"]`).textContent = n ? n : "";
   }
-  const todo = state.items.filter((i) => i.list === list && !i.done);
+  const todo = state.items.filter((i) => i.list === hList && !i.done);
   $("#hItems").replaceChildren(...todo.slice(0, 5).map(itemEl));
   $("#hEmpty").hidden = todo.length > 0;
-  $("#hEmpty").textContent = list === "oda" ? "Oda-listen er tom." : "Handlelisten er tom.";
+  $("#hEmpty").textContent = hList === "oda" ? "Oda-listen er tom." : "Handlelisten er tom.";
   $("#hMore").hidden = todo.length <= 5;
   $("#hMore").textContent = `Se alle ${todo.length} varer`;
-  $("#hAddInput").placeholder = list === "oda" ? "Legg til på Oda-listen…" : "Legg til vare…";
+  $("#hAddInput").placeholder = hList === "oda" ? "Legg til på Oda-listen…" : "Legg til vare…";
   homeAdder.refresh();
 
   // I morgen: middag og avtaler
@@ -776,8 +861,53 @@ $("#settingsBtn").onclick = () => {
   $("#codeShow").textContent = prettyCode(code);
   $("#webcalMenu").href = calUrl();
   $("#webcalEvents").href = calUrl("/kalender");
+  renderFeeds();
   $("#settings").showModal();
 };
+// ---------- Andre kalendere ----------
+function renderFeeds() {
+  $("#feedList").replaceChildren(...(state.feeds || []).map((f) => {
+    const info = state.feedInfo?.[f.id] || {};
+    const li = document.createElement("li");
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const name = document.createElement("b");
+    name.textContent = f.name;
+    const status = document.createElement("span");
+    if (info.error) { status.className = "feed-err"; status.textContent = "Kunne ikke hentes: " + info.error; }
+    else if (info.fetched) {
+      const t = new Date(info.fetched);
+      status.textContent = `${info.count} avtaler · hentet ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+    } else status.textContent = "Henter …";
+    meta.append(name, status);
+    const del = document.createElement("button");
+    del.type = "button";
+    del.innerHTML = icon("trash");
+    del.setAttribute("aria-label", `Fjern ${f.name}`);
+    del.onclick = () => {
+      if (!confirm(`Fjerne «${f.name}» fra appen? Selve kalenderen påvirkes ikke.`)) return;
+      state.feeds = state.feeds.filter((x) => x.id !== f.id);
+      state.ext = (state.ext || []).filter((e) => e.feed !== f.id);
+      send({ t: "feedDel", id: f.id });
+      renderFeeds();
+      render();
+    };
+    li.append(meta, del);
+    return li;
+  }));
+}
+
+$("#feedAdd").onclick = () => {
+  const name = $("#feedName").value.trim();
+  const url = $("#feedUrl").value.trim();
+  if (!name) { toast("Gi kalenderen et navn"); $("#feedName").focus(); return; }
+  if (!/^(webcals?|https?):\/\/\S+$/i.test(url)) { toast("Lim inn en lenke som starter med webcal:// eller https://"); $("#feedUrl").focus(); return; }
+  send({ t: "feedAdd", name, url });
+  $("#feedName").value = "";
+  $("#feedUrl").value = "";
+  toast(`Henter «${name}» …`);
+};
+
 $("#shareBtn").onclick = async () => {
   const data = { title: "Handleliste", text: `Bli med i handlelisten vår (kode: ${prettyCode(code)})`, url: inviteUrl() };
   if (navigator.share) { try { await navigator.share(data); } catch {} }

@@ -292,3 +292,41 @@ input:disabled { opacity: .45; }
 /* Varsel med angre-knapp */
 .toast { display: flex; align-items: center; gap: 14px; }
 .toast-btn { background: none; border: 0; color: var(--accent-soft); font-weight: 700; padding: 0; }
+
+/* Lister som piller (rulles sidelengs når det blir mange) */
+.pills { display: flex; gap: 8px; overflow-x: auto; margin: 4px -16px 14px; padding: 2px 16px; scrollbar-width: none; }
+.pills::-webkit-scrollbar { display: none; }
+.pills button {
+  flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 8px 14px; font-weight: 600; font-size: 15px; color: var(--text); white-space: nowrap;
+}
+.pills button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pills button.active .count { color: inherit; opacity: .8; }
+.pills .new-list { color: var(--accent); border-style: dashed; display: flex; align-items: center; gap: 4px; }
+.pills .new-list .i { width: 18px; height: 18px; }
+.list-tools { display: flex; justify-content: center; gap: 24px; margin: 20px 0; }
+.danger-text { color: var(--danger); }
+.item-link { flex: none; color: var(--accent); padding: 10px 4px; display: grid; place-items: center; }
+.item-link .i { width: 20px; height: 20px; }
+.host { color: var(--muted); font-size: 14px; }
+
+/* Avtaler fra andre kalendere */
+.ev.ext .ev-title { color: var(--text); }
+.src {
+  display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; vertical-align: 2px;
+}
+.feed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.feed-list:empty { display: none; }
+.feed-list li { background: var(--surface); border-radius: 12px; padding: 10px 6px 10px 14px; display: flex; align-items: center; gap: 8px; }
+.feed-list .meta { flex: 1; min-width: 0; display: grid; }
+.feed-list .meta span { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-list .meta .feed-err { color: var(--danger); white-space: normal; }
+.feed-list button { background: none; border: 0; color: var(--muted); padding: 8px; display: grid; place-items: center; }
+.feed-form { display: grid; gap: 8px; }
+.howto { font-size: 14px; color: var(--muted); }
+.howto summary { color: var(--accent); font-weight: 600; cursor: pointer; padding: 4px 0; }
+.howto ol { padding-left: 20px; margin: 6px 0; display: grid; gap: 4px; }
+.howto p { margin: 6px 0; }
+.howto b { color: var(--text); font-weight: 600; }
+.toast { width: max-content; max-width: calc(100vw - 32px); }

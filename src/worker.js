@@ -1,9 +1,15 @@
 import { DurableObject } from "cloudflare:workers";
 import { cleanRepeat, endIso, firstIso, rrule } from "../public/recur.js";
+import { parseIcs } from "./ics.js";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
-const LISTS = ["butikk", "oda"];
+const LISTS = ["butikk", "oda"]; // faste lister; egne lister ligger i state.lists
+const LIST_ID_RE = /^l-[a-z0-9-]{4,40}$/;
+const MAX_LISTS = 30;
+const MAX_FEEDS = 6;
+const FEED_TTL = 10 * 60 * 1000; // hent andre kalendere på nytt etter 10 min
+const MAX_ICS_BYTES = 3 * 1024 * 1024;
 const WEEK_RE = /^\d{4}-W\d{2}$/;
 const MAX_ITEMS = 500;
 const MAX_WEEKS = 60;
@@ -55,6 +61,10 @@ export class Family extends DurableObject {
     ctx.blockConcurrencyWhile(async () => {
       this.state = (await ctx.storage.get("state")) || { items: [], menu: {} };
       this.state.events ||= [];
+      this.state.lists ||= [];
+      this.state.feeds ||= [];
+      // Avtaler hentet fra andre kalendere (lagres for seg, sendes med til appen).
+      this.ext = (await ctx.storage.get("ext")) || {};
       if (!this.state.history) {
         // Første gang: bygg historikk fra varene som allerede ligger inne.
         this.state.history = {};
@@ -66,8 +76,58 @@ export class Family extends DurableObject {
   async fetch() {
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
-    server.send(JSON.stringify({ t: "state", state: this.state }));
+    server.send(this.payload());
+    this.refreshFeeds();
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  // Det appen får: lagret tilstand + avtaler fra andre kalendere.
+  payload() {
+    const ext = [];
+    const feedInfo = {};
+    for (const f of this.state.feeds) {
+      const x = this.ext[f.id];
+      feedInfo[f.id] = x ? { fetched: x.fetched, error: x.error || "", count: x.events?.length || 0 } : { fetched: 0, error: "", count: 0 };
+      for (const e of x?.events || []) ext.push({ ...e, feed: f.id });
+    }
+    return JSON.stringify({ t: "state", state: { ...this.state, ext, feedInfo } });
+  }
+
+  broadcast() {
+    const out = this.payload();
+    for (const s of this.ctx.getWebSockets()) {
+      try { s.send(out); } catch {}
+    }
+  }
+
+  // Henter andre kalendere som er eldre enn FEED_TTL (eller alle med force).
+  async refreshFeeds(force = false) {
+    const due = this.state.feeds.filter((f) => force || !this.ext[f.id] || Date.now() - this.ext[f.id].fetched > FEED_TTL);
+    if (!due.length || this.fetching) return;
+    this.fetching = true;
+    try {
+      const now = Date.now();
+      await Promise.all(due.map(async (f) => {
+        const prev = this.ext[f.id];
+        try {
+          const res = await fetch(f.url, { headers: { "User-Agent": "Handleliste-kalender/1.0", Accept: "text/calendar,*/*" } });
+          if (!res.ok) throw new Error(`Svarte ${res.status}`);
+          const text = await res.text();
+          if (text.length > MAX_ICS_BYTES) throw new Error("Kalenderen er for stor");
+          if (!text.includes("BEGIN:VCALENDAR")) throw new Error("Lenken er ikke en kalender (.ics)");
+          const events = parseIcs(text, now - 31 * 864e5, now + 366 * 864e5);
+          this.ext[f.id] = { fetched: now, events };
+        } catch (e) {
+          // Behold forrige vellykkede henting, men vis feilen.
+          this.ext[f.id] = { fetched: now, events: prev?.events || [], error: String(e.message || e).slice(0, 120) };
+        }
+      }));
+      for (const id of Object.keys(this.ext)) if (!this.state.feeds.some((f) => f.id === id)) delete this.ext[id];
+      await this.ctx.storage.put("ext", this.ext);
+      this.broadcast();
+    } finally {
+      this.fetching = false;
+    }
   }
 
   async webSocketMessage(ws, raw) {
@@ -77,14 +137,11 @@ export class Family extends DurableObject {
     } catch {
       return;
     }
+    if (msg.t === "feedRefresh") return void this.refreshFeeds(!!msg.force);
     if (!this.apply(msg)) return;
     await this.ctx.storage.put("state", this.state);
-    const out = JSON.stringify({ t: "state", state: this.state });
-    for (const s of this.ctx.getWebSockets()) {
-      try {
-        s.send(out);
-      } catch {}
-    }
+    this.broadcast();
+    if (msg.t === "feedAdd") this.refreshFeeds();
   }
 
   webSocketClose(ws, code) {
@@ -107,7 +164,8 @@ export class Family extends DurableObject {
     switch (msg.t) {
       case "add": {
         const text = str(msg.text, 200);
-        if (!text || !LISTS.includes(msg.list) || st.items.length >= MAX_ITEMS) return false;
+        const okList = LISTS.includes(msg.list) || st.lists.some((l) => l.id === msg.list);
+        if (!text || !okList || st.items.length >= MAX_ITEMS) return false;
         st.items.push({ id: crypto.randomUUID(), text, list: msg.list, done: false, ts: Date.now() });
         this.remember(text, msg.list);
         return true;
@@ -142,6 +200,49 @@ export class Family extends DurableObject {
         st.items = st.items.filter((i) => !(i.list === msg.list && i.done));
         return st.items.length !== n;
       }
+      // Egne lister (ønskelister o.l.)
+      case "listAdd": {
+        const name = str(msg.name, 40);
+        if (!name || !LIST_ID_RE.test(msg.id) || st.lists.some((l) => l.id === msg.id) || st.lists.length >= MAX_LISTS) return false;
+        st.lists.push({ id: msg.id, name });
+        return true;
+      }
+      case "listRename": {
+        const l = st.lists.find((x) => x.id === msg.id);
+        const name = str(msg.name, 40);
+        if (!l || !name) return false;
+        l.name = name;
+        return true;
+      }
+      case "listDel": {
+        if (!st.lists.some((l) => l.id === msg.id)) return false;
+        st.lists = st.lists.filter((l) => l.id !== msg.id);
+        st.items = st.items.filter((i) => i.list !== msg.id);
+        return true;
+      }
+
+      // Andre kalendere (iCloud, Google, Spond via iCloud/Google, skole …)
+      case "feedAdd": {
+        const name = str(msg.name, 40);
+        let url = str(msg.url, 2000).replace(/^webcals?:\/\//i, "https://");
+        if (!name || st.feeds.length >= MAX_FEEDS) return false;
+        try {
+          const u = new URL(url);
+          if (!/^https?:$/.test(u.protocol)) return false;
+          url = u.href;
+        } catch {
+          return false;
+        }
+        st.feeds.push({ id: crypto.randomUUID(), name, url });
+        return true;
+      }
+      case "feedDel": {
+        const n = st.feeds.length;
+        st.feeds = st.feeds.filter((f) => f.id !== msg.id);
+        delete this.ext[msg.id];
+        return st.feeds.length !== n;
+      }
+
       case "evAdd":
       case "evEdit": {
         const title = str(msg.title, 200);

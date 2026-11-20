@@ -127,10 +127,7 @@
 
       <!-- Handleliste -->
       <div id="view-list" class="view">
-        <div class="seg" role="tablist">
-          <button role="tab" data-list="butikk" class="active">I butikk <span class="count" data-count="butikk"></span></button>
-          <button role="tab" data-list="oda">Oda <span class="count" data-count="oda"></span></button>
-        </div>
+        <div id="listTabs" class="pills" role="tablist" aria-label="Lister"></div>
 
         <form id="addForm" class="add">
           <input id="addInput" placeholder="Legg til vare…" autocomplete="off" enterkeyhint="done" maxlength="200">
@@ -143,13 +140,17 @@
 
         <div id="doneWrap" hidden>
           <div class="done-head">
-            <h2>Handlet</h2>
+            <h2 id="doneTitle">Handlet</h2>
             <button id="clearBtn" class="link-btn">Fjern handlede</button>
           </div>
           <ul id="done" class="items done"></ul>
         </div>
 
         <a id="odaLink" class="oda-link" href="https://oda.com/no/" target="_blank" rel="noopener" hidden>Åpne Oda <svg class="i sm" aria-hidden="true"><use href="#i-external-link"/></svg></a>
+        <div id="listTools" class="list-tools" hidden>
+          <button type="button" id="renameList" class="link-btn">Gi nytt navn</button>
+          <button type="button" id="deleteList" class="link-btn danger-text">Slett listen</button>
+        </div>
       </div>
 
       <!-- Ukemeny -->
@@ -204,7 +205,7 @@
       </button>
       <button data-view="list">
         <svg class="i" aria-hidden="true"><use href="#i-shopping-list"/></svg>
-        Handleliste
+        Lister
       </button>
       <button data-view="menu">
         <svg class="i" aria-hidden="true"><use href="#i-chef-recipe-book"/></svg>
@@ -234,6 +235,26 @@
       <p class="muted small">Vil dere også se ukemenyen eller kalenderen i Kalender-appen på iPhone, kan dere abonnere. Den oppdateres automatisk omtrent én gang i timen.</p>
       <a id="webcalMenu" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner på ukemenyen</a>
       <a id="webcalEvents" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner på kalenderen</a>
+
+      <h3>Andre kalendere</h3>
+      <p class="muted small">Vis avtaler fra andre kalendere i appen, f.eks. Spond, skole eller jobb. Lim inn kalenderens abonnementslenke (iCal/.ics). Avtalene vises her, men endres der de kommer fra.</p>
+      <ul id="feedList" class="feed-list"></ul>
+      <div id="feedForm" class="feed-form">
+        <input id="feedName" placeholder="Navn, f.eks. Spond" maxlength="40" autocomplete="off">
+        <input id="feedUrl" placeholder="webcal://… eller https://….ics" type="url" inputmode="url" autocapitalize="off" autocomplete="off">
+        <button type="button" id="feedAdd" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg> Legg til kalender</button>
+      </div>
+      <details class="howto">
+        <summary>Slik får du med Spond</summary>
+        <p>Spond legger aktivitetene rett inn i en kalender på telefonen, men har ingen lenke vi kan hente. Gjør det slik:</p>
+        <ol>
+          <li>Lag en ny iCloud-kalender, f.eks. «Spond», i Kalender-appen.</li>
+          <li>I Spond: profilbildet → <b>Kalenderinnstillinger</b> → <b>Standardkalender</b> → velg «Spond».</li>
+          <li>I Kalender-appen: trykk <b>Kalendere</b> → <b>ⓘ</b> ved «Spond» → slå på <b>Offentlig kalender</b> → <b>Del lenke</b> → <b>Kopier</b>.</li>
+          <li>Lim lenken inn over, og kall den «Spond».</li>
+        </ol>
+        <p>Alle med lenken kan se kalenderen, så ikke del den videre. Bruker dere Google-kalender, finner du lenken under kalenderens innstillinger → «Hemmelig adresse i iCal-format».</p>
+      </details>
 
       <h3>Bytt familie</h3>
       <button type="button" id="leaveBtn" class="danger wide"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Forlat familien</button>
