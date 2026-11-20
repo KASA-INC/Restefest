@@ -27,3 +27,7 @@ npm run deploy     # gir en adresse som https://handleliste.<konto>.workers.dev
 ```
 
 Åpne adressen i Safari på iPhone → Del → **Legg til på Hjem-skjerm**.
+
+## Ikoner
+
+Appikon og ikoner i appen er fra [UIX Sharp](https://github.com/mdrakibshekh/uix-icons) av MD Rakib Shekh (MIT-lisens), hentet via Iconify. Appikonet bruker `uix-sharp:category-grocery`.

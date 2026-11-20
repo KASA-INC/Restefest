@@ -3,6 +3,7 @@
 const $ = (s) => document.querySelector(s);
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
 const DAYS = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
+const icon = (name, cls = "i") => `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const MONTHS = ["jan", "feb", "mar", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "des"];
 
 const store = {
@@ -164,7 +165,7 @@ function itemEl(it) {
   const del = document.createElement("button");
   del.className = "del";
   del.setAttribute("aria-label", "Slett " + it.text);
-  del.textContent = "×";
+  del.innerHTML = icon("close");
   del.onclick = () => {
     state.items = state.items.filter((i) => i.id !== it.id);
     renderList();
@@ -254,7 +255,7 @@ function renderSuggest() {
     const forget = document.createElement("button");
     forget.type = "button";
     forget.className = "forget";
-    forget.textContent = "×";
+    forget.innerHTML = icon("close", "i sm");
     forget.setAttribute("aria-label", `Glem «${h.text}»`);
     forget.onclick = () => {
       delete state.history[h.text.toLowerCase()];
@@ -320,7 +321,7 @@ function renderMenu() {
         <div class="day-head"><span class="day-name"></span><span class="muted small"></span></div>
         <input class="dish" placeholder="Rett" maxlength="200" enterkeyhint="next">
         <input class="link" placeholder="Link til oppskrift" type="url" inputmode="url" autocapitalize="off" maxlength="1000" enterkeyhint="done">
-        <a class="recipe" target="_blank" rel="noopener" hidden>Åpne oppskrift ↗</a>`;
+        <a class="recipe" target="_blank" rel="noopener" hidden>Åpne oppskrift ${icon("external-link", "i sm")}</a>`;
       card.querySelector(".day-name").textContent = name;
       if (i === 4) card.querySelector(".dish").placeholder = "Taco"; // fredagstaco
       card.querySelector(".muted").textContent = fmt(date);

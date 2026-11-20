@@ -37,6 +37,8 @@ body {
   min-height: 100dvh;
 }
 [hidden] { display: none !important; }
+.i { width: 24px; height: 24px; flex: none; vertical-align: -6px; }
+.i.sm { width: 17px; height: 17px; vertical-align: -3px; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 h1, h2, h3 { margin: 0; }
@@ -55,6 +57,7 @@ input {
 }
 input:focus { border-color: var(--accent); }
 
+.primary .i, .btn .i, .danger .i { margin-right: 6px; }
 .primary, .btn, .danger {
   border: 0;
   border-radius: 12px;
@@ -79,8 +82,10 @@ input:focus { border-color: var(--accent); }
 #join { display: grid; place-items: center; min-height: 100dvh; padding: 24px 16px; }
 .join-card { width: 100%; max-width: 420px; display: grid; gap: 16px; }
 .join-card h1 { font-size: 32px; }
+.join-logo { border-radius: 18px; }
 .join-card label { display: block; margin-bottom: 8px; font-weight: 600; }
 .row { display: flex; gap: 8px; }
+.row .primary { flex: none; white-space: nowrap; }
 .or { text-align: center; color: var(--muted); position: relative; }
 .or::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--line); }
 .or span { background: var(--bg); padding: 0 10px; position: relative; }
@@ -114,6 +119,7 @@ main { padding: 0 16px; }
   padding: 8px 0 10px; font-size: 12px; color: var(--muted);
 }
 .tabbar button.active { color: var(--accent); }
+.tabbar .i { width: 26px; height: 26px; }
 
 /* Handleliste */
 .seg {
@@ -125,13 +131,14 @@ main { padding: 0 16px; }
 .count { font-weight: 500; color: var(--muted); font-size: 14px; }
 
 .add { display: flex; gap: 8px; margin-bottom: 14px; }
-.add .primary { width: 50px; padding: 0; font-size: 26px; flex: none; }
+.add .primary { width: 50px; padding: 0; flex: none; display: grid; place-items: center; }
+.add .primary .i { width: 28px; height: 28px; }
 
 .suggest { list-style: none; margin: -6px 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .suggest:empty { display: none; }
 .suggest li { display: flex; align-items: center; background: var(--accent-soft); border-radius: 999px; }
 .suggest .pick { background: none; border: 0; padding: 8px 4px 8px 14px; font-weight: 500; }
-.suggest .forget { background: none; border: 0; padding: 8px 12px 8px 6px; color: var(--muted); font-size: 18px; line-height: 1; }
+.suggest .forget { background: none; border: 0; padding: 8px 12px 8px 6px; color: var(--muted); display: grid; place-items: center; }
 
 .items { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
 .items:empty { display: none; }
@@ -149,7 +156,8 @@ main { padding: 0 16px; }
 .done .box::after { content: ""; width: 6px; height: 11px; border: solid var(--accent-ink); border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
 .txt { overflow-wrap: anywhere; }
 .done .txt { color: var(--muted); text-decoration: line-through; }
-.del { flex: none; background: none; border: 0; color: var(--muted); font-size: 22px; padding: 10px 14px; }
+.del { flex: none; background: none; border: 0; color: var(--muted); padding: 10px 14px; display: grid; place-items: center; }
+.del .i { width: 20px; height: 20px; }
 
 .empty { text-align: center; color: var(--muted); margin: 32px 0; }
 .done-head { display: flex; align-items: baseline; justify-content: space-between; margin: 22px 2px 6px; }

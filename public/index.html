@@ -12,13 +12,31 @@
   <meta name="apple-mobile-web-app-title" content="Handleliste">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icon-192.png" type="image/png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Ikoner: UIX Sharp (MIT, MD Rakib Shekh) via Iconify -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-grocery" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="m4 10l2 1.5L8 10l2 1.5l2-1.5l2 1.5l2-1.5l2 1.5l2-1.5v11.5H4Z"/><path d="M6.75 11L3 6a2.5 2.5 0 0 1 4-3l6 8m1.75-.25V8.5C14.75 7 16 6.5 16 5V2.5h2.5V5c0 1.5 1.25 2 1.25 3.5v1.75M6 8l2.5-1M3.75 5l2.5-1"/></g></symbol>
+    <symbol id="i-shopping-list" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="M4.5 2.5h15v19h-15Z"/><path d="M7.5 5.5H10V8H7.5Zm0 5.25H10v2.5H7.5Zm0 5.25H10v2.5H7.5Zm5.25-9.25h3.75M12.75 12h3.75m-3.75 5.25H15"/></g></symbol>
+    <symbol id="i-calendar-week" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M3 3.5h18v18H3ZM8 2v3.5M16 2v3.5m-13 2h18M7 11h10M7 14.25h10M7 17.5h10"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="m10.474 4.912l.261-2.327h2.53l.261 2.327l2.407.997l1.83-1.461l1.789 1.789l-1.461 1.83l.997 2.407l2.327.261v2.53l-2.327.261l-.997 2.407l1.461 1.83l-1.789 1.789l-1.83-1.461l-2.407.997l-.261 2.327h-2.53l-.261-2.327l-2.407-.997l-1.83 1.461l-1.789-1.789l1.461-1.83l-.997-2.407l-2.327-.261v-2.53l2.327-.261l.997-2.407l-1.461-1.83l1.789-1.789l1.83 1.461Z"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0Z"/></g></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="m5.5 5.5l13 13m0-13l-13 13"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M15 18.5L8.5 12L15 5.5"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="m9 5.5l6.5 6.5L9 18.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M12 4v16m-8-8h16"/></symbol>
+    <symbol id="i-external-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M11 4.5H7.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V13M11 13l8.5-8.5m-5.5 0h5.5V10"/></symbol>
+    <symbol id="i-share-ios" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M8.5 9h-2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2M12 2.5v12M8.5 6L12 2.5L15.5 6"/></symbol>
+    <symbol id="i-calendar-sync" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="M3.5 5h17v15.5h-17ZM8 3v4m8-4v4M3.5 10h17"/><path d="M9.835 14a2.5 2.5 0 0 1 4.665 1.25"/><path d="m13.25 14l1.25 1.25L15.75 14m-1.585 2.5A2.5 2.5 0 0 1 9.5 15.25"/><path d="m8.25 16.5l1.25-1.25l1.25 1.25"/></g></symbol>
+    <symbol id="i-copy-link" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5"><path d="M8.5 8.5h12v12h-12Z"/><path d="M4 14.5V6a2.5 2.5 0 0 1 2.5-2.5h8M13 12h-.5a2.5 2.5 0 0 0 0 5h.5m3-5h.5a2.5 2.5 0 0 1 0 5H16m-3-2.5h3"/></g></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="3.5" stroke-width="1.5" d="M13 6V4.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2H11a2 2 0 0 0 2-2V18m-5-6h13m-3.5-3.5L21 12l-3.5 3.5"/></symbol>
+  </svg>
   <!-- Oppstart: lag eller bli med i familie -->
   <section id="join" class="screen" hidden>
     <div class="join-card">
+      <img src="icon.svg" alt="" class="join-logo" width="72" height="72">
       <h1>Handleliste</h1>
       <p class="muted">Alle som bruker samme familiekode ser den samme listen og ukemenyen, med en gang.</p>
       <button id="createBtn" class="primary wide">Lag ny familie</button>
@@ -40,7 +58,7 @@
       <h1 id="title">Handleliste</h1>
       <span id="conn" class="conn" title="Tilkobling"></span>
       <button id="settingsBtn" class="icon-btn" aria-label="Innstillinger">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        <svg class="i" aria-hidden="true"><use href="#i-settings"/></svg>
       </button>
     </header>
 
@@ -54,7 +72,7 @@
 
         <form id="addForm" class="add">
           <input id="addInput" placeholder="Legg til vare…" autocomplete="off" enterkeyhint="done" maxlength="200">
-          <button class="primary" aria-label="Legg til">+</button>
+          <button class="primary" aria-label="Legg til"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></button>
         </form>
         <ul id="suggest" class="suggest" aria-label="Forslag"></ul>
 
@@ -69,18 +87,18 @@
           <ul id="done" class="items done"></ul>
         </div>
 
-        <a id="odaLink" class="oda-link" href="https://oda.com/no/" target="_blank" rel="noopener" hidden>Åpne Oda ↗</a>
+        <a id="odaLink" class="oda-link" href="https://oda.com/no/" target="_blank" rel="noopener" hidden>Åpne Oda <svg class="i sm" aria-hidden="true"><use href="#i-external-link"/></svg></a>
       </div>
 
       <!-- Ukemeny -->
       <div id="view-menu" class="view" hidden>
         <div class="week-nav">
-          <button id="prevWeek" class="icon-btn" aria-label="Forrige uke">‹</button>
+          <button id="prevWeek" class="icon-btn" aria-label="Forrige uke"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
           <div>
             <div id="weekLabel" class="week-label"></div>
             <div id="weekDates" class="muted small"></div>
           </div>
-          <button id="nextWeek" class="icon-btn" aria-label="Neste uke">›</button>
+          <button id="nextWeek" class="icon-btn" aria-label="Neste uke"><svg class="i" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
         </div>
         <button id="thisWeek" class="link-btn center" hidden>Gå til denne uken</button>
         <div id="days" class="days"></div>
@@ -89,11 +107,11 @@
 
     <nav class="tabbar">
       <button data-view="list" class="active">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/></svg>
+        <svg class="i" aria-hidden="true"><use href="#i-shopping-list"/></svg>
         Handleliste
       </button>
       <button data-view="menu">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+        <svg class="i" aria-hidden="true"><use href="#i-calendar-week"/></svg>
         Ukemeny
       </button>
     </nav>
@@ -110,15 +128,16 @@
       <h3>Familiekode</h3>
       <div class="code-box"><code id="codeShow"></code></div>
       <p class="muted small">Del koden (eller lenken) med resten av familien. Alle med koden kan se og endre listene.</p>
-      <button type="button" id="shareBtn" class="primary wide">Del invitasjonslenke</button>
+      <button type="button" id="shareBtn" class="primary wide"><svg class="i" aria-hidden="true"><use href="#i-share-ios"/></svg> Del invitasjonslenke</button>
 
       <h3>Kalender på iPhone</h3>
       <p class="muted small">Abonner på ukemenyen i Kalender-appen. Middagene dukker opp som heldagshendelser og oppdateres automatisk.</p>
-      <a id="webcalLink" class="btn wide">Abonner i Kalender</a>
-      <button type="button" id="copyCal" class="link-btn">Kopier kalenderadresse</button>
+      <a id="webcalLink" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner i Kalender</a>
+      <button type="button" id="copyCal" class="link-btn"><svg class="i sm" aria-hidden="true"><use href="#i-copy-link"/></svg> Kopier kalenderadresse</button>
 
       <h3>Bytt familie</h3>
-      <button type="button" id="leaveBtn" class="danger wide">Forlat familien på denne enheten</button>
+      <button type="button" id="leaveBtn" class="danger wide"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg> Forlat familien</button>
+      <p class="muted small">Listene blir liggende for de andre. Du kan bli med igjen med koden.</p>
     </form>
   </dialog>
 
