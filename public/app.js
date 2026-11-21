@@ -524,6 +524,7 @@ function evLine(ev, iso) {
   const li = document.createElement("li");
   if (ev.holiday) li.className = "hol" + (ev.red ? " red" : "");
   if (ev.kind === "bday") li.innerHTML = icon("cake", "i sm") + " ";
+  else if (ev.icon) li.innerHTML = icon(ev.icon, "i sm") + " ";
   if (ev.time) { const b = document.createElement("b"); b.textContent = ev.time + (ev.end ? "–" + ev.end : ""); li.append(b); }
   li.append(evLabel(ev, iso));
   return li;
@@ -654,6 +655,7 @@ function evItem(ev, nowMin = null, iso = isoDate(new Date())) {
   const title = b.querySelector(".ev-title");
   title.textContent = evLabel(ev, iso);
   if (ev.kind === "bday") { b.classList.add("bday"); title.insertAdjacentHTML("afterbegin", icon("cake", "i sm")); }
+  else if (ev.icon) title.insertAdjacentHTML("afterbegin", icon(ev.icon, "i sm lead"));
   else if (ev.repeat) title.insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
   if (ev.holiday) b.classList.add("holiday", ...(ev.red ? ["red"] : []));
   if (ev.feed) {

@@ -522,3 +522,7 @@ input, select { border-radius: 14px; background: var(--surface); }
 .dinner .dish { font-weight: 500; }
 .ev-time { font-weight: 600; }
 body { letter-spacing: 0.005em; }
+
+/* Ikon foran titler fra andre kalendere (f.eks. fotball) */
+.ev-title .i.sm.lead { color: var(--accent); margin: 0 6px 0 0; vertical-align: -3px; }
+.day-evs .i.sm { color: var(--accent); vertical-align: -3px; }

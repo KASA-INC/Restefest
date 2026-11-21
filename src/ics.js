@@ -57,6 +57,16 @@ function prop(line) {
   return { name: name.toUpperCase(), params, value: line.slice(i + 1) };
 }
 
+// Emojier i titler fra andre kalendere fjernes; noen blir til et ikon fra appens ikonserie.
+const EMOJI_RE = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\uFE0F\u200D\u20E3]/gu;
+const EMOJI_ICONS = { "⚽": "football" };
+export function cleanTitle(raw) {
+  let icon = "";
+  for (const [emoji, name] of Object.entries(EMOJI_ICONS)) if (raw.includes(emoji)) { icon = name; break; }
+  const title = raw.replace(EMOJI_RE, "").replace(/\s+/g, " ").trim();
+  return { title: title || "(uten tittel)", icon };
+}
+
 const unescape = (s) => s.replace(/\\n/gi, " ").replace(/\\([,;\\])/g, "$1").replace(/\s+/g, " ").trim();
 
 // Et tidspunkt fra DTSTART/DTEND/EXDATE/RECURRENCE-ID.
@@ -182,15 +192,17 @@ export function parseIcs(text, fromMs, toMs) {
   }
 
   const out = [];
-  const push = (title, startMs, endMs, allDay, f) => {
+  const push = (rawTitle, startMs, endMs, allDay, f) => {
     if (out.length >= MAX_OUT) return;
+    const { title, icon } = cleanTitle(rawTitle);
+    const extra = icon ? { icon } : {};
     if (allDay) {
       // Heldag: én oppføring per dag (maks 31), datoene som de står.
       const days = Math.max(1, Math.min(31, Math.round((endMs - startMs) / DAY)));
       for (let i = 0; i < days; i++) {
         const t = startMs + i * DAY;
         if (t + DAY <= fromMs || t > toMs) continue;
-        out.push({ title, date: new Date(t).toISOString().slice(0, 10), time: "", end: "" });
+        out.push({ title, date: new Date(t).toISOString().slice(0, 10), time: "", end: "", ...extra });
       }
       return;
     }
@@ -198,7 +210,7 @@ export function parseIcs(text, fromMs, toMs) {
     const s = parts(startMs, OSLO);
     const e = parts(endMs, OSLO);
     const sameDay = isoOf(s) === isoOf(e);
-    out.push({ title, date: isoOf(s), time: hmOf(s), end: sameDay && endMs > startMs ? hmOf(e) : "" });
+    out.push({ title, date: isoOf(s), time: hmOf(s), end: sameDay && endMs > startMs ? hmOf(e) : "", ...extra });
   };
 
   for (const e of events) {
