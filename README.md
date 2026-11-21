@@ -40,4 +40,6 @@ Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger 
 
 ## Ikoner
 
-Appikon og ikoner i appen er fra [UIX Sharp](https://github.com/mdrakibshekh/uix-icons) av MD Rakib Shekh (MIT-lisens), hentet via Iconify. Appikonet bruker `uix-sharp:calendar-heart`.
+Ikonene er fra [Arcticons](https://github.com/Arcticons-Team/Arcticons) av Donnnno og Arcticons-bidragsytere, hentet via Iconify, og er lisensiert under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Brukt: `home`, `shopping-list`, `emoji-pot-of-food`, `fossify-calendar`, `settings`, `share`, `trashcan`, `clock`, `emoji-birthday-cake`, `emoji-anticlockwise-downwards-and-upwards-open-circle-arrows` og `heart`.
+
+Endringer: strekbredden er justert for små størrelser, prikkene i kalenderikonet er forstørret, og appikonet er satt sammen av `fossify-calendar` og `heart`. Pluss, kryss, piler, «åpne lenke» og «logg ut» finnes ikke i Arcticons og er tegnet i samme stil. Ikonene (med endringer) deles under samme lisens, CC BY-SA 4.0.
