@@ -60,10 +60,14 @@ function prop(line) {
 // Emojier i titler fra andre kalendere fjernes; noen blir til et ikon fra appens ikonserie.
 const EMOJI_RE = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\uFE0F\u200D\u20E3]/gu;
 const EMOJI_ICONS = { "⚽": "football" };
+// Kampresultater i parentes («(4-1)», «(1-1, 4-3 pen)», «(2-1 aet)») fjernes – ingen spoilere.
+const SCORE_RE = /\s*\(\s*\d{1,2}\s*[-–:]\s*\d{1,2}(?!\d)(?:[^()]*)\)/g;
+export const stripScore = (s) => s.replace(SCORE_RE, "");
+
 export function cleanTitle(raw) {
   let icon = "";
   for (const [emoji, name] of Object.entries(EMOJI_ICONS)) if (raw.includes(emoji)) { icon = name; break; }
-  const title = raw.replace(EMOJI_RE, "").replace(/\s+/g, " ").trim();
+  const title = stripScore(raw.replace(EMOJI_RE, "")).replace(/\s+/g, " ").trim();
   return { title: title || "(uten tittel)", icon };
 }
 

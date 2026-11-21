@@ -633,7 +633,11 @@ const eventsOn = (iso) => [
 ].sort((a, b) => !!b.holiday - !!a.holiday || (a.time || "").localeCompare(b.time || "") || (a.ts || 0) - (b.ts || 0));
 
 // Teksten som vises for en avtale på en gitt dato (bursdager får alder).
+// Kampresultater fjernes også ved visning (gjelder avtaler som allerede er hentet).
+const SCORE_RE = /\s*\(\s*\d{1,2}\s*[-–:]\s*\d{1,2}(?!\d)(?:[^()]*)\)/g;
+
 function evLabel(ev, iso) {
+  if (ev.feed) return ev.title.replace(SCORE_RE, "").trim();
   if (ev.kind !== "bday") return ev.title;
   const age = ev.born ? Number(iso.slice(0, 4)) - ev.born : 0;
   return age > 0 ? `${ev.title} fyller ${age}` : `${ev.title} har bursdag`;
