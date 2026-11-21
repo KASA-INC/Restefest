@@ -147,10 +147,14 @@ function* expand(start, rule, toMs) {
 export function parseIcs(text, fromMs, toMs) {
   const events = [];
   let cur = null;
+  let nested = 0; // underdeler i en avtale (f.eks. VALARM-påminnelser) har egne SUMMARY o.l. som skal ignoreres
   for (const line of unfold(text)) {
-    if (line === "BEGIN:VEVENT") { cur = { exdates: new Set() }; continue; }
+    if (line === "BEGIN:VEVENT") { cur = { exdates: new Set() }; nested = 0; continue; }
     if (line === "END:VEVENT") { if (cur) events.push(cur); cur = null; continue; }
     if (!cur) continue;
+    if (line.startsWith("BEGIN:")) { nested++; continue; }
+    if (line.startsWith("END:")) { nested = Math.max(0, nested - 1); continue; }
+    if (nested) continue;
     const p = prop(line);
     if (!p) continue;
     switch (p.name) {
