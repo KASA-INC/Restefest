@@ -49,6 +49,24 @@ export default {
       });
     }
 
+    // Forsiden: gjør OpenGraph-adressene absolutte (delingstjenester krever det).
+    // Familiekoden i ?kode=… tas bevisst ikke med i og:url.
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      const res = await env.ASSETS.fetch(req);
+      if (!res.headers.get("Content-Type")?.includes("text/html")) return res;
+      const abs = (attr) => ({
+        element(el) {
+          const v = el.getAttribute(attr);
+          if (v && v.startsWith("/")) el.setAttribute(attr, url.origin + v);
+        },
+      });
+      return new HTMLRewriter()
+        .on('meta[property="og:image"]', abs("content"))
+        .on('meta[name="twitter:image"]', abs("content"))
+        .on('meta[property="og:url"]', abs("content"))
+        .transform(res);
+    }
+
     return env.ASSETS.fetch(req);
   },
 };

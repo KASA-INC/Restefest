@@ -5,6 +5,8 @@ compatibility_date = "2025-09-01"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+# Forsiden går via workeren, slik at OpenGraph-adressene kan gjøres absolutte.
+run_worker_first = ["/", "/index.html"]
 
 [[durable_objects.bindings]]
 name = "FAMILY"

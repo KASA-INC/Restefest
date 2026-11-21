@@ -34,6 +34,10 @@ npm run deploy     # gir en adresse som https://uka.<konto>.workers.dev
 
 Åpne adressen i Safari på iPhone → Del → **Legg til på Hjem-skjerm**.
 
+## Deling (OpenGraph)
+
+Forsiden har OpenGraph- og Twitter-metadata med tittel, beskrivelse og delingsbildet `public/og-image.png` (1200 × 630). Workeren gjør bilde- og side-adressene absolutte for domenet appen kjører på (`run_worker_first` i `wrangler.toml`), og familiekoden i invitasjonslenker tas ikke med i `og:url`.
+
 ## Skrifter og farger
 
 Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett. Nå brukes [Jost](https://github.com/indestructible-type/Jost) (geometrisk sans i Futura-tradisjonen) overalt; serifskriftene kan slås på igjen med tre CSS-variabler øverst i `style.css`: [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (de største titlene), [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
