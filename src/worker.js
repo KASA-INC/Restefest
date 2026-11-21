@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { cleanRepeat, endIso, firstIso, rrule } from "../public/recur.js";
 import { parseIcs } from "./ics.js";
+import { EVENT_ICON_IDS } from "../public/eventicons.js";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -287,12 +288,14 @@ export class Family extends DurableObject {
         const data = bday ? { title, date, time: "", end: "", ts: Date.now(), kind: "bday" } : { title, date, time, end, ts: Date.now() };
         if (bday && Number.isInteger(bornYear) && bornYear >= 1900 && bornYear <= new Date().getFullYear()) data.born = bornYear;
         if (repeat) data.repeat = repeat;
+        if (!bday && EVENT_ICON_IDS.has(msg.icon)) data.icon = msg.icon;
         if (msg.t === "evEdit") {
           const ev = st.events.find((e) => e.id === msg.id);
           if (!ev) return false;
           delete ev.repeat;
           delete ev.kind;
           delete ev.born;
+          delete ev.icon;
           Object.assign(ev, data);
         } else {
           // Rydd bort avtaler som var ferdige for over ett år siden.

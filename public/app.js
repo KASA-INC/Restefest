@@ -1,6 +1,7 @@
 import { occursOn, endIso, weekday } from "./recur.js";
 import { parseQuick } from "./quick.js";
 import { holidaysOn } from "./holidays.js";
+import { EVENT_ICON_GROUPS, EVENT_ICONS, suggestIcon } from "./eventicons.js";
 
 const $ = (s) => document.querySelector(s);
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -403,9 +404,9 @@ function eventHistory() {
   for (const e of state.events || []) {
     const key = e.title.toLowerCase();
     if (hidden.has(key)) continue;
-    const x = (h[key] ||= { text: e.title, n: 0, ts: 0, time: "", end: "" });
+    const x = (h[key] ||= { text: e.title, n: 0, ts: 0, time: "", end: "", icon: "" });
     x.n++;
-    if ((e.ts || 0) >= x.ts) Object.assign(x, { ts: e.ts || 0, text: e.title, time: e.time || "", end: e.end || "" });
+    if ((e.ts || 0) >= x.ts) Object.assign(x, { ts: e.ts || 0, text: e.title, time: e.time || "", end: e.end || "", icon: e.icon || "" });
   }
   return Object.values(h);
 }
@@ -655,8 +656,10 @@ function evItem(ev, nowMin = null, iso = isoDate(new Date())) {
   const title = b.querySelector(".ev-title");
   title.textContent = evLabel(ev, iso);
   if (ev.kind === "bday") { b.classList.add("bday"); title.insertAdjacentHTML("afterbegin", icon("cake", "i sm")); }
-  else if (ev.icon) title.insertAdjacentHTML("afterbegin", icon(ev.icon, "i sm lead"));
-  else if (ev.repeat) title.insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
+  else {
+    if (ev.icon) title.insertAdjacentHTML("afterbegin", icon(ev.icon, "i sm lead"));
+    if (ev.repeat) title.insertAdjacentHTML("beforeend", icon("repeat", "i sm"));
+  }
   if (ev.holiday) b.classList.add("holiday", ...(ev.red ? ["red"] : []));
   if (ev.feed) {
     const src = document.createElement("span");
@@ -818,6 +821,69 @@ function renderWeekCal() {
 let editing = null;
 let pickedDays = [];
 
+// ---------- Ikonvelger ----------
+let pickedIcon = "";
+let iconTouched = false; // har brukeren valgt selv? Da foreslår vi ikke lenger ut fra tittelen.
+const iconLabel = (id) => EVENT_ICONS.find((i) => i.id === id)?.label || "";
+// Ikon for en tittel: samme som sist avtalen ble brukt, ellers et forslag ut fra ordene.
+function iconFor(title) {
+  const prev = eventHistory().find((h) => h.text.toLowerCase() === title.trim().toLowerCase());
+  return prev?.icon || suggestIcon(title);
+}
+
+function renderIconPick() {
+  $("#evIconShow").innerHTML = pickedIcon ? icon(pickedIcon) : "";
+  const name = $("#evIconName");
+  name.textContent = pickedIcon ? iconLabel(pickedIcon) : "Ingen";
+  if (pickedIcon && !iconTouched) name.insertAdjacentHTML("beforeend", " <small>(foreslått)</small>");
+  $("#evIconGrid").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.icon === pickedIcon));
+}
+
+(function buildIconGrid() {
+  const grid = $("#evIconGrid");
+  const mk = (id, label) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.icon = id;
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    if (id) b.innerHTML = icon(id); else { b.className = "none"; b.textContent = "Ingen"; }
+    b.onclick = () => {
+      pickedIcon = id;
+      iconTouched = true;
+      grid.hidden = true;
+      $("#evIconBtn").setAttribute("aria-expanded", "false");
+      renderIconPick();
+    };
+    return b;
+  };
+  const first = document.createElement("div");
+  first.className = "row";
+  first.append(mk("", "Ingen"));
+  grid.append(first);
+  for (const [group, list] of EVENT_ICON_GROUPS) {
+    const h = document.createElement("h4");
+    h.textContent = group;
+    const row = document.createElement("div");
+    row.className = "row";
+    row.append(...list.map(([id, label]) => mk(id, label)));
+    grid.append(h, row);
+  }
+})();
+
+$("#evIconBtn").onclick = () => {
+  const open = $("#evIconGrid").hidden;
+  $("#evIconGrid").hidden = !open;
+  $("#evIconBtn").setAttribute("aria-expanded", String(open));
+  if (open) $("#evIconGrid .on")?.scrollIntoView({ block: "nearest" });
+};
+
+function autoIcon() {
+  if (iconTouched) return;
+  pickedIcon = iconFor($("#evTitle").value);
+  renderIconPick();
+}
+
 function suggestTitle() {
   const inp = $("#evTitle");
   if (document.activeElement !== inp) return $("#evSuggest").replaceChildren();
@@ -827,11 +893,12 @@ function suggestTitle() {
       inp.value = h.text;
       if (!$("#evTime").value && h.time) { $("#evTime").value = h.time; $("#evEnd").value = h.end || ""; syncTimeUi(); }
       $("#evSuggest").replaceChildren();
+      autoIcon();
     },
     forget: (h) => { hideSuggestion("event", h.text); suggestTitle(); },
   });
 }
-$("#evTitle").oninput = suggestTitle;
+$("#evTitle").oninput = () => { suggestTitle(); autoIcon(); };
 $("#evTitle").onfocus = suggestTitle;
 $("#evTitle").onblur = () => setTimeout(suggestTitle, 150);
 
@@ -843,7 +910,7 @@ const fmtLong = (iso) => {
 // Viser/skjuler feltene for gjentakelse og skriver en kort forklaring.
 function syncRepeatUi() {
   const bday = $("#evBday").checked;
-  $("#evTimeRow").hidden = $("#evRepeatRow").hidden = bday;
+  $("#evTimeRow").hidden = $("#evRepeatRow").hidden = $("#evIconWrap").hidden = bday;
   $("#evAllDay").hidden = bday || !!$("#evTime").value;
   if (bday) {
     $("#evDaysWrap").hidden = true;
@@ -884,6 +951,11 @@ function syncRepeatUi() {
 function openEvent(ev) {
   editing = ev.id ? (state.events || []).find((e) => e.id === ev.id) || null : null;
   $("#evBday").checked = ev.kind === "bday";
+  iconTouched = !!editing;
+  pickedIcon = ev.icon || (editing ? "" : iconFor(ev.title || ""));
+  $("#evIconGrid").hidden = true;
+  $("#evIconBtn").setAttribute("aria-expanded", "false");
+  renderIconPick();
   $("#evHead").textContent = editing ? "Endre avtale" : "Ny avtale";
   $("#evTitle").value = ev.title || "";
   $("#evDate").value = ev.date;
@@ -947,6 +1019,7 @@ $("#evForm").onsubmit = (e) => {
   const data = { title: $("#evTitle").value.trim(), date: $("#evDate").value, time: $("#evTime").value, end: $("#evEnd").value };
   if (!data.title || !data.date) return;
   const freq = $("#evBday").checked ? "" : $("#evFreq").value;
+  if (!$("#evBday").checked && pickedIcon) data.icon = pickedIcon;
   if ($("#evBday").checked) {
     const y = +data.date.slice(0, 4);
     Object.assign(data, { time: "", end: "", kind: "bday", repeat: { freq: "yearly", dur: "inf" } });
@@ -962,6 +1035,7 @@ $("#evForm").onsubmit = (e) => {
     delete editing.repeat;
     delete editing.kind;
     delete editing.born;
+    delete editing.icon;
     Object.assign(editing, data);
     send({ t: "evEdit", id: editing.id, ...data });
   } else {
@@ -1027,7 +1101,11 @@ function wireQuick({ form, input, preview, sum, more, help, from, after }) {
     });
     return hits.length;
   };
-  const parse = () => parseQuick(inp.value, { today: new Date(), from: from() });
+  const parse = () => {
+    const ev = parseQuick(inp.value, { today: new Date(), from: from() });
+    if (ev && ev.kind !== "bday") { const ic = iconFor(ev.title); if (ic) ev.icon = ic; }
+    return ev;
+  };
   function refresh() {
     const nSug = suggest();
     const text = inp.value.trim();
@@ -1044,7 +1122,8 @@ function wireQuick({ form, input, preview, sum, more, help, from, after }) {
       parts.push(span);
     };
     const b = document.createElement("b");
-    b.textContent = ev.title;
+    if (ev.icon) b.innerHTML = icon(ev.icon, "i sm lead");
+    b.append(ev.title);
     parts.push(b);
     if (ev.kind === "bday") {
       const [y, m, d] = ev.date.split("-").map(Number);
