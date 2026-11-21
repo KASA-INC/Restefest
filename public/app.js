@@ -497,7 +497,7 @@ function renderMenu() {
         <div class="mmain">
           <div class="dinner">
             <input class="dish" placeholder="Rett" maxlength="200" enterkeyhint="done">
-            <button type="button" class="rlink">${icon("chef-recipe-book")}</button>
+            <button type="button" class="rlink">${icon("cookbook")}</button>
           </div>
           <ul class="day-evs"></ul>
         </div>`;
