@@ -1182,7 +1182,7 @@ function renderHome() {
   $("#hDish").placeholder = day === 4 ? "Taco" : "Hva blir det til middag?";
   fillDinner($("#hDish"), $("#hRecipe"), state.menu[key]?.[day]);
 
-  // Aktiviteter i dag
+  // Husk på (dagens avtaler)
   const evs = eventsOn(isoDate(now)).filter((e) => !e.holiday); // helligdager står i datolinjen
   $("#hEvents").replaceChildren(...evs.map((ev) => evItem(ev, now.getHours() * 60 + now.getMinutes(), isoDate(now))));
   $("#hNoEvents").hidden = evs.length > 0;

@@ -2,7 +2,7 @@
 
 Familiens uke på ett sted – handleliste, ukemeny og kalender – med sanntidssynk via **familiekode**.
 
-- **I dag** (startskjerm): dagens middag, dagens aktiviteter (pågående merket «nå», ferdige tonet ned), de fem øverste på handlelisten og et blikk på i morgen. Alt kan legges til og krysses av direkte herfra.
+- **I dag** (startskjerm): dagens middag, «Husk på» med dagens avtaler (pågående merket «nå», ferdige tonet ned), de fem øverste på handlelisten og et blikk på i morgen. Alt kan legges til og krysses av direkte herfra.
 - **Handleliste** med to faner: *I butikk* og *Oda*. Trykk for å krysse av, «Fjern handlede» rydder.
 - **Egne lister** (ønskelister o.l.) ved siden av *I butikk* og *Oda*: «+ Ny liste», gi nytt navn, slett. Lenker i en vare vises som en egen knapp.
 - **Helligdager og merkedager** (røde dager, advent, sankthans, morsdag/farsdag, sommertid …) regnes ut for hvert år og vises i kalender, ukemeny og på startskjermen. Kan slås av i innstillingene.
