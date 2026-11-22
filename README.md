@@ -5,6 +5,7 @@ Familiens uke på ett sted – handleliste, ukemeny og kalender – med sanntids
 - **I dag** (startskjerm): dagens middag, «Husk på» med dagens avtaler (pågående merket «nå», ferdige tonet ned), de fem øverste på handlelisten og et blikk på i morgen. Alt kan legges til og krysses av direkte herfra.
 - **Handleliste** med to faner: *I butikk* og *Oda*. Trykk for å krysse av, «Fjern handlede» rydder.
 - **Egne lister** (ønskelister o.l.) ved siden av *I butikk* og *Oda*: «+ Ny liste», gi nytt navn, slett. Lenker i en vare vises som en egen knapp.
+- **Lyd ved avkrysning**: fem korte lyder (`public/sounds/`) spilles i tilfeldig rekkefølge når noe krysses av på listene – alle fem før noen gjentas, aldri samme to ganger på rad. Stillhet i starten er klippet bort og nivået utjevnet. Kan slås av per enhet i innstillingene.
 - **Ikoner på avtaler**: velg blant 47 Arcticons-ikoner i sju grupper (sport, kultur, skole/jobb, helse, mat/sosialt, reise, hjem). Appen foreslår ikon ut fra tittelen («Tannlege» → tann) og husker ikonet fra sist. Listen ligger i `public/eventicons.js`.
 - **Helligdager og merkedager** (røde dager, advent, sankthans, morsdag/farsdag, sommertid …) regnes ut for hvert år og vises i kalender, ukemeny og på startskjermen. Kan slås av i innstillingene.
 - **Bursdager**: skriv «Ida 14.03.2015», «Kristian 090484» eller «Bursdag Ola 1. des» – gjentas hvert år og viser alder («Ida fyller 11») når fødselsåret er kjent.

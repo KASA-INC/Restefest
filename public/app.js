@@ -179,6 +179,55 @@ function render() {
   renderCal();
 }
 
+// ---------- Lyd ved avkrysning ----------
+// Fem korte lyder i tilfeldig rekkefølge («stokket bunke»: alle spilles før noen gjentas,
+// og samme lyd kommer aldri to ganger på rad). Web Audio gir lyd uten forsinkelse.
+const SOUND_FILES = [1, 2, 3, 4, 5].map((n) => `sounds/done-${n}.mp3`);
+let soundOn = store.get("sound") !== "off";
+let actx = null, buffers = null, loadingSounds = null, bag = [], lastSound = -1;
+
+function loadSounds() {
+  if (loadingSounds) return loadingSounds;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return (loadingSounds = Promise.resolve());
+  // iPhone: bland med annen lyd (musikk stopper ikke) og følg lydløs-bryteren.
+  try { if (navigator.audioSession) navigator.audioSession.type = "ambient"; } catch {}
+  actx = new Ctx();
+  loadingSounds = Promise.all(SOUND_FILES.map((u) =>
+    fetch(u).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, fail) => actx.decodeAudioData(b, ok, fail)))
+  )).then((b) => { buffers = b; }).catch(() => { buffers = []; });
+  return loadingSounds;
+}
+
+function nextSound() {
+  if (!bag.length) {
+    bag = buffers.map((_, i) => i);
+    for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+    if (bag.length > 1 && bag[bag.length - 1] === lastSound) [bag[0], bag[bag.length - 1]] = [bag[bag.length - 1], bag[0]];
+  }
+  return (lastSound = bag.pop());
+}
+
+function playDone() {
+  if (!soundOn) return;
+  loadSounds();
+  if (!actx) return;
+  if (actx.state === "suspended") actx.resume();
+  const play = () => {
+    if (!buffers?.length) return;
+    const src = actx.createBufferSource();
+    src.buffer = buffers[nextSound()];
+    const gain = actx.createGain();
+    gain.gain.value = 0.8;
+    src.connect(gain).connect(actx.destination);
+    src.start();
+  };
+  buffers ? play() : loadingSounds.then(play);
+}
+
+// Lydene lastes ved første trykk (iPhone krever at lyd startes av brukeren).
+document.addEventListener("pointerdown", () => { if (soundOn) { loadSounds(); actx?.resume(); } }, { once: true, capture: true });
+
 // ---------- Handleliste ----------
 function itemEl(it) {
   const li = document.createElement("li");
@@ -198,6 +247,7 @@ function itemEl(it) {
   } else txt.textContent = it.text;
   btn.onclick = () => {
     it.done = !it.done; // umiddelbar respons lokalt
+    if (it.done) playDone();
     render();
     send({ t: "toggle", id: it.id, done: it.done });
     if (it.done) toast(`«${it.text}» er ${isShopping(it.list) ? "handlet" : "krysset av"}`, "Angre", () => {
@@ -1335,6 +1385,7 @@ $("#settingsBtn").onclick = () => {
   $("#webcalEvents").href = calUrl("/kalender");
   renderFeeds();
   $("#showHolidays").checked = showHolidays;
+  $("#soundOn").checked = soundOn;
   $("#settings").showModal();
 };
 // ---------- Andre kalendere ----------
@@ -1369,6 +1420,12 @@ function renderFeeds() {
     return li;
   }));
 }
+
+$("#soundOn").onchange = () => {
+  soundOn = $("#soundOn").checked;
+  store.set("sound", soundOn ? "on" : "off");
+  if (soundOn) playDone(); // en smakebit, så man hører hvordan det låter
+};
 
 $("#showHolidays").onchange = () => {
   showHolidays = $("#showHolidays").checked;
