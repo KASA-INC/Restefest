@@ -44,8 +44,12 @@ Forsiden har OpenGraph- og Twitter-metadata med tittel, beskrivelse og delingsbi
 
 Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett. Nå brukes [Jost](https://github.com/indestructible-type/Jost) (geometrisk sans i Futura-tradisjonen) overalt; serifskriftene kan slås på igjen med tre CSS-variabler øverst i `style.css`: [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (de største titlene), [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
 
+## Logo og appikon
+
+Uka-logoen (ordet UKA med en avkrysningshake i K-en) ligger i `public/logo.svg`, renset for Illustrator-data. Den brukes i appikonene (`icon-180/192/512.png`), faviconet (`icon.svg`, med større logo for små størrelser), delingsbildet (`og-image.png`) og på velkomstskjermen. Haken er farget terrakotta der bakgrunnen er lys.
+
 ## Ikoner
 
 Ikonene er fra [Arcticons](https://github.com/Arcticons-Team/Arcticons) av Donnnno og Arcticons-bidragsytere, hentet via Iconify, og er lisensiert under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Brukt: `home`, `shopping-list`, `emoji-pot-of-food`, `nextcloud-cookbook`, `fossify-calendar`, `settings`, `share`, `trashcan`, `clock`, `emoji-birthday-cake`, `emoji-soccer-ball`, `emoji-anticlockwise-downwards-and-upwards-open-circle-arrows` og `heart`.
 
-Endringer: strekbredden er justert for små størrelser, prikkene i kalenderikonet er forstørret, og appikonet er satt sammen av `fossify-calendar` og `heart`. Pluss, kryss, piler, «åpne lenke» og «logg ut» finnes ikke i Arcticons og er tegnet i samme stil. Ikonene (med endringer) deles under samme lisens, CC BY-SA 4.0.
+Endringer: strekbredden er justert for små størrelser og prikkene i kalenderikonet er forstørret. Pluss, kryss, piler, «åpne lenke» og «logg ut» finnes ikke i Arcticons og er tegnet i samme stil. Ikonene (med endringer) deles under samme lisens, CC BY-SA 4.0.
