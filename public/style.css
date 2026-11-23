@@ -553,5 +553,4 @@ body { letter-spacing: 0.005em; }
 
 /* Velkomstskjermen: Uka-logoen (bokstaver i tekstfarge, haken i terrakotta) */
 .join-title { margin: 0 0 4px; line-height: 0; }
-.join-title .wordmark { width: min(260px, 70vw); height: auto; fill: var(--text); }
-.join-title .wordmark .tick { fill: var(--accent); }
+.join-title .wordmark { width: min(200px, 55vw); height: auto; fill: var(--text); }
