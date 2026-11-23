@@ -1303,6 +1303,7 @@ document.querySelectorAll("[data-hlist]").forEach((b) => {
   b.onclick = () => { hList = b.dataset.hlist; store.set("hlist", hList); renderHome(); };
 });
 document.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => showView(b.dataset.go)));
+$("#brand").onclick = () => showView("home");
 $("#hMore").onclick = () => { list = hList; store.set("list", list); renderList(); showView("list"); };
 
 function renderHome() {

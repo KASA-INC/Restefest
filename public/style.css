@@ -554,3 +554,18 @@ body { letter-spacing: 0.005em; }
 /* Velkomstskjermen: Uka-logoen (bokstaver i tekstfarge, haken i terrakotta) */
 .join-title { margin: 0 0 4px; line-height: 0; }
 .join-title .wordmark { width: min(200px, 55vw); height: auto; fill: var(--text); }
+
+/* Logo i toppfeltet (trykk = startsiden) */
+.brand { flex: none; background: none; border: 0; padding: 4px 2px 0 0; margin-right: -2px; display: grid; place-items: center; color: var(--accent); }
+.brand svg { height: 24px; width: auto; fill: currentColor; display: block; }
+/* Toppfelt i to linjer: logo, tilkobling og innstillinger øverst – tittelen (klokken) får hele bredden under */
+.top {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center;
+  grid-template-areas: "brand conn gear" "title title title";
+  column-gap: 10px; row-gap: 0; padding-top: calc(6px + env(safe-area-inset-top)); padding-bottom: 6px;
+}
+.top .brand { grid-area: brand; justify-self: start; padding: 2px 0; }
+.top .brand svg { height: 20px; }
+.top #conn { grid-area: conn; }
+.top #settingsBtn { grid-area: gear; margin-right: -8px; }
+.top #title { grid-area: title; min-width: 0; }
