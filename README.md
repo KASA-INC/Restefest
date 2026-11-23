@@ -31,7 +31,7 @@ npm run dev        # http://localhost:8787
 
 ```bash
 npx wrangler login
-npm run deploy     # gir en adresse som https://uka.<konto>.workers.dev
+npm run deploy     # oppdaterer workeren «handlelista» (https://uka-app.no)
 ```
 
 Åpne adressen i Safari på iPhone → Del → **Legg til på Hjem-skjerm**.

@@ -1,4 +1,6 @@
-name = "uka"
+# Navnet på workeren hos Cloudflare. Må være «handlelista» – det er der familienes data ligger
+# (Durable Objects) og der domenet uka-app.no peker. Brukerne ser det ikke.
+name = "handlelista"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
 
