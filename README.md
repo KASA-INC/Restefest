@@ -46,7 +46,7 @@ Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger 
 
 ## Logo og appikon
 
-Uka-logoen (ordet UKA i en enkel, sammenhengende strek) ligger i `public/logo.svg`, renset for Illustrator-data. Den brukes i appikonene (`icon-180/192/512.png`), faviconet (`icon.svg` og `favicon-32.png`, med større logo for små størrelser), delingsbildet (`og-image.png`) og på velkomstskjermen.
+Uka-logoen (ordet UKA i en enkel, sammenhengende strek) ligger i `public/logo.svg`, renset for Illustrator-data. Den brukes i appikonene – `icon-any-192/512.png` med Mac-formet avrundet flis og gjennomsiktig marg (Mac/Windows), `icon-192/512.png` som «maskable» fulle kvadrater (Android) og `icon-180.png` for iPhone –, faviconet (`icon.svg` og `favicon-32.png`, med større logo for små størrelser), delingsbildet (`og-image.png`) og på velkomstskjermen.
 
 ## Ikoner
 
