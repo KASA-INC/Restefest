@@ -553,7 +553,8 @@ body { letter-spacing: 0.005em; }
 
 /* Velkomstskjermen: Uka-logoen (bokstaver i tekstfarge, haken i terrakotta) */
 .join-title { margin: 0 0 4px; line-height: 0; }
-.join-title .wordmark { width: min(200px, 55vw); height: auto; fill: var(--text); }
+.join-title .wordmark { width: min(260px, 70vw); height: auto; fill: var(--text); }
+.join-title .wordmark .tick { fill: var(--accent); }
 
 /* Logo i toppfeltet (trykk = startsiden) */
 .brand { flex: none; background: none; border: 0; padding: 4px 2px 0 0; margin-right: -2px; display: grid; place-items: center; color: var(--accent); }
