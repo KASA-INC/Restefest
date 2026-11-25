@@ -569,3 +569,13 @@ body { letter-spacing: 0.005em; }
 .top #conn { grid-area: conn; }
 .top #settingsBtn { grid-area: gear; margin-right: -8px; }
 .top #title { grid-area: title; min-width: 0; }
+
+/* Varsler i innstillingene */
+.push-prefs { display: grid; gap: 12px; margin-top: 4px; }
+.push-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.push-row .check-row { flex: 1; min-width: 0; }
+.push-row .check-row small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); margin-top: 1px; }
+.push-row select { flex: none; width: auto; min-width: 118px; padding: 8px 10px; font-size: 15px; }
+.push-row:has(input:not(:checked)) select { opacity: .45; }
+.push-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.push-actions .btn { width: auto; }

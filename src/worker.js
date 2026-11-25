@@ -2,6 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 import { cleanRepeat, endIso, firstIso, rrule } from "../public/recur.js";
 import { parseIcs } from "./ics.js";
 import { EVENT_ICON_IDS } from "../public/eventicons.js";
+import { makeVapid, sendPush } from "./push.js";
+import { changesPayload, cleanPrefs, dueBetween } from "./notify.js";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -18,6 +20,10 @@ const MAX_HISTORY = 400;
 const MAX_EVENTS = 2000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_SUBS = 40;              // enheter med varsler per familie
+const CHANGE_DELAY = 90 * 1000;   // endringer samles i halvannet minutt før de varsles
+const LOOKAHEAD = 36 * 3600e3;    // hvor langt fram neste «vekking» planlegges
+const DEVICE_RE = /^[a-z0-9-]{8,40}$/;
 
 const normCode = (s) => decodeURIComponent(s).normalize("NFC").trim().toLowerCase();
 
@@ -34,6 +40,21 @@ export default {
         return new Response("Forventet WebSocket", { status: 426 });
       }
       return env.FAMILY.get(env.FAMILY.idFromName(code)).fetch(req);
+    }
+
+    // Varsler: /api/push/<kode>/(key|sub|unsub|test)
+    if ((m = url.pathname.match(/^\/api\/push\/([^/]+)\/(key|sub|unsub|test)$/))) {
+      const code = normCode(m[1]);
+      if (!CODE_RE.test(code)) return new Response("Ugyldig familiekode", { status: 400 });
+      const fam = env.FAMILY.get(env.FAMILY.idFromName(code));
+      const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+      if (m[2] === "key") return json({ key: await fam.pushKey() });
+      if (req.method !== "POST") return new Response("Bruk POST", { status: 405 });
+      let body;
+      try { body = await req.json(); } catch { return json({ ok: false }, 400); }
+      if (m[2] === "sub") return json(await fam.pushSub(body));
+      if (m[2] === "unsub") return json(await fam.pushUnsub(String(body.endpoint || "")));
+      return json(await fam.pushTest(String(body.endpoint || "")));
     }
 
     // Kalenderabonnement: /cal/<kode>.ics (ukemeny) og /cal/<kode>/kalender.ics (avtaler)
@@ -86,6 +107,9 @@ export class Family extends DurableObject {
       this.state.hidden ||= { dish: [], event: [] };
       // Avtaler hentet fra andre kalendere (lagres for seg, sendes med til appen).
       this.ext = (await ctx.storage.get("ext")) || {};
+      // Varsler: enheter som har slått på varsler, og endringer som venter på å bli varslet.
+      this.subs = (await ctx.storage.get("subs")) || [];
+      this.pending = (await ctx.storage.get("pending")) || null;
       if (!this.state.history) {
         // Første gang: bygg historikk fra varene som allerede ligger inne.
         this.state.history = {};
@@ -146,6 +170,7 @@ export class Family extends DurableObject {
       for (const id of Object.keys(this.ext)) if (!this.state.feeds.some((f) => f.id === id)) delete this.ext[id];
       await this.ctx.storage.put("ext", this.ext);
       this.broadcast();
+      await this.schedule();
     } finally {
       this.fetching = false;
     }
@@ -159,9 +184,17 @@ export class Family extends DurableObject {
       return;
     }
     if (msg.t === "feedRefresh") return void this.refreshFeeds(!!msg.force);
+    if (msg.t === "hello") {
+      if (DEVICE_RE.test(msg.device)) ws.serializeAttachment({ device: msg.device });
+      return;
+    }
     if (!this.apply(msg)) return;
     await this.ctx.storage.put("state", this.state);
     this.broadcast();
+    if (this.subs.length) {
+      await this.noteChange(msg, ws);
+      await this.schedule(); // avtaler/ukemeny kan ha endret seg
+    }
     if (msg.t === "feedAdd") this.refreshFeeds();
   }
 
@@ -345,6 +378,138 @@ export class Family extends DurableObject {
       keys.sort((a, b) => h[a].n - h[b].n || h[a].ts - h[b].ts);
       for (const k of keys.slice(0, keys.length - MAX_HISTORY)) delete h[k];
     }
+  }
+
+  // ---------- Varsler ----------
+  async vapid() {
+    if (!this.vapidKeys) this.vapidKeys = (await this.ctx.storage.get("vapid")) || null;
+    if (!this.vapidKeys) {
+      this.vapidKeys = await makeVapid();
+      await this.ctx.storage.put("vapid", this.vapidKeys);
+    }
+    return this.vapidKeys;
+  }
+
+  async pushKey() {
+    return (await this.vapid()).pub;
+  }
+
+  // Lagrer (eller oppdaterer) en enhets abonnement og valg.
+  async pushSub({ sub, prefs, device } = {}) {
+    const endpoint = String(sub?.endpoint || "");
+    const p256dh = String(sub?.keys?.p256dh || "");
+    const auth = String(sub?.keys?.auth || "");
+    try {
+      if (new URL(endpoint).protocol !== "https:" || endpoint.length > 1000) return { ok: false };
+    } catch {
+      return { ok: false };
+    }
+    if (!/^[A-Za-z0-9_-]{80,100}$/.test(p256dh) || !/^[A-Za-z0-9_-]{16,30}$/.test(auth)) return { ok: false };
+    let s = this.subs.find((x) => x.endpoint === endpoint);
+    if (!s) {
+      if (this.subs.length >= MAX_SUBS) this.subs.sort((a, b) => a.seen - b.seen).shift();
+      s = { id: crypto.randomUUID(), endpoint, sent: {}, created: Date.now() };
+      this.subs.push(s);
+    }
+    Object.assign(s, { keys: { p256dh, auth }, prefs: cleanPrefs(prefs), device: DEVICE_RE.test(device) ? device : "", seen: Date.now() });
+    await this.saveSubs();
+    await this.schedule();
+    return { ok: true, prefs: s.prefs };
+  }
+
+  async pushUnsub(endpoint) {
+    const n = this.subs.length;
+    this.subs = this.subs.filter((s) => s.endpoint !== endpoint);
+    if (this.subs.length !== n) { await this.saveSubs(); await this.schedule(); }
+    return { ok: true };
+  }
+
+  async pushTest(endpoint) {
+    const s = this.subs.find((x) => x.endpoint === endpoint);
+    if (!s) return { ok: false, status: 404 };
+    const status = await this.push(s, { title: "Varsler er på", body: "Slik ser varslene fra Uka ut.", tag: "test", url: "/" }, { ttl: 600, urgency: "high" });
+    return { ok: status >= 200 && status < 300, status };
+  }
+
+  async saveSubs() {
+    await this.ctx.storage.put("subs", this.subs);
+  }
+
+  // Sender til én enhet og rydder bort abonnementer nettleseren har avsluttet.
+  async push(s, payload, opts) {
+    const status = await sendPush(s, payload, await this.vapid(), opts);
+    if (status === 404 || status === 410) {
+      this.subs = this.subs.filter((x) => x !== s);
+      await this.saveSubs();
+    }
+    return status;
+  }
+
+  // Noen la til en vare eller en avtale: samles opp og varsles til de andre etter en liten stund.
+  async noteChange(msg, ws) {
+    const device = (() => { try { return ws.deserializeAttachment()?.device || ""; } catch { return ""; } })();
+    let change = null;
+    if (msg.t === "add") {
+      const it = this.state.items[this.state.items.length - 1];
+      if (it) change = { kind: "item", text: it.text, list: it.list, device };
+    } else if (msg.t === "evAdd") {
+      const ev = this.state.events[this.state.events.length - 1];
+      if (ev && ev.kind !== "bday") change = { kind: "event", title: ev.title, date: ev.date, time: ev.time, device };
+    }
+    if (!change || !this.subs.some((s) => s.prefs.changes)) return;
+    this.pending ||= { at: Date.now() + CHANGE_DELAY, changes: [] };
+    if (this.pending.changes.length < 60) this.pending.changes.push(change);
+    await this.ctx.storage.put("pending", this.pending);
+  }
+
+  extEvents() {
+    const out = [];
+    for (const f of this.state.feeds) for (const e of this.ext[f.id]?.events || []) out.push({ ...e, feed: f.id });
+    return out;
+  }
+
+  // Setter «vekkerklokka» til neste varsel (eller fjerner den når ingen har varsler).
+  async schedule() {
+    if (!this.subs.length) {
+      await this.ctx.storage.deleteAlarm();
+      return;
+    }
+    const now = Date.now();
+    const next = dueBetween(this.state, this.extEvents(), this.subs, now, now + LOOKAHEAD)[0]?.at;
+    let at = Math.min(next ?? Infinity, this.pending?.at ?? Infinity, now + LOOKAHEAD);
+    at = Math.max(at, now + 1000);
+    const cur = await this.ctx.storage.getAlarm();
+    if (cur !== at) await this.ctx.storage.setAlarm(at);
+  }
+
+  async alarm() {
+    const now = Date.now();
+    // Sjekk fra forrige gang, men aldri mer enn 15 min bakover (ingen gamle varsler etter en pause).
+    const from = Math.max((await this.ctx.storage.get("lastCheck")) || now - 60e3, now - 15 * 60e3);
+    const due = dueBetween(this.state, this.extEvents(), this.subs, from, now + 500);
+    const sends = [];
+    for (const d of due) {
+      const s = this.subs.find((x) => x.id === d.subId);
+      if (!s || s.sent[d.key]) continue;
+      s.sent[d.key] = now;
+      sends.push(this.push(s, d.payload, d.opts));
+    }
+    if (this.pending && this.pending.at <= now + 500) {
+      for (const s of this.subs) {
+        if (!s.prefs.changes) continue;
+        const mine = this.pending.changes.filter((c) => !s.device || c.device !== s.device);
+        const payload = changesPayload(this.state, mine);
+        if (payload) sends.push(this.push(s, payload, { ttl: 6 * 3600 }));
+      }
+      this.pending = null;
+      await this.ctx.storage.delete("pending");
+    }
+    await Promise.all(sends);
+    // Glem «sendt»-merker eldre enn tre døgn.
+    for (const s of this.subs) for (const [k, t] of Object.entries(s.sent)) if (now - t > 3 * 864e5) delete s.sent[k];
+    await this.saveSubs();
+    await this.ctx.storage.put("lastCheck", now);
+    await this.schedule();
   }
 
   // RPC fra worker: lager iCalendar-feed av ukemenyen eller avtalene.

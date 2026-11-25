@@ -335,6 +335,36 @@
       <a id="webcalMenu" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner på ukemenyen</a>
       <a id="webcalEvents" class="btn wide"><svg class="i" aria-hidden="true"><use href="#i-calendar-sync"/></svg> Abonner på kalenderen</a>
 
+      <h3>Varsler</h3>
+      <div id="pushBox">
+        <p id="pushInfo" class="muted small"></p>
+        <button type="button" id="pushOn" class="primary wide" hidden><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg> Slå på varsler</button>
+        <div id="pushPrefs" class="push-prefs" hidden>
+          <div class="push-row">
+            <label class="check-row"><input type="checkbox" id="pRemind"> <span>Påminnelse før avtaler<small>Også fra andre kalendere</small></span></label>
+            <select id="pRemindMin" aria-label="Hvor lenge før">
+              <option value="10">10 min før</option><option value="15">15 min før</option><option value="30">30 min før</option><option value="60">1 time før</option><option value="120">2 timer før</option>
+            </select>
+          </div>
+          <div class="push-row">
+            <label class="check-row"><input type="checkbox" id="pMorning"> <span>Morgenoversikt<small>Dagens avtaler og middag</small></span></label>
+            <select id="pMorningAt" aria-label="Tidspunkt for morgenoversikt"></select>
+          </div>
+          <div class="push-row">
+            <label class="check-row"><input type="checkbox" id="pDinner"> <span>Middag i dag<small>Hva som står i ukemenyen</small></span></label>
+            <select id="pDinnerAt" aria-label="Tidspunkt for middagsvarsel"></select>
+          </div>
+          <div class="push-row">
+            <label class="check-row"><input type="checkbox" id="pChanges"> <span>Endringer fra familien<small>Nye varer og avtaler fra de andre</small></span></label>
+          </div>
+          <p class="muted small">Varslene gjelder bare denne enheten. Alle i familien slår på varsler selv.</p>
+          <div class="push-actions">
+            <button type="button" id="pushTest" class="btn">Send testvarsel</button>
+            <button type="button" id="pushOff" class="link-btn">Slå av varsler her</button>
+          </div>
+        </div>
+      </div>
+
       <h3>Helligdager og merkedager</h3>
       <label class="check-row"><input type="checkbox" id="showHolidays"> Vis røde dager og merkedager (påske, advent, sankthans …) i kalenderen</label>
 

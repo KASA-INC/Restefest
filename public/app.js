@@ -89,6 +89,7 @@ function start(c) {
   showView(view);
   render();
   connect();
+  setTimeout(() => pushSync(), 0);
 }
 
 // ---------- Synk (WebSocket) ----------
@@ -105,6 +106,7 @@ function connect() {
   ws.onopen = () => {
     retry = 0;
     setConn("on");
+    ws.send(JSON.stringify({ t: "hello", device: deviceId }));
     ws.send(JSON.stringify({ t: "feedRefresh" }));
     for (const m of queue) ws.send(JSON.stringify(m));
     queue = [];
@@ -1387,6 +1389,7 @@ $("#settingsBtn").onclick = () => {
   renderFeeds();
   $("#showHolidays").checked = showHolidays;
   $("#soundOn").checked = soundOn;
+  renderPush();
   $("#settings").showModal();
 };
 // ---------- Andre kalendere ----------
@@ -1452,6 +1455,7 @@ $("#shareBtn").onclick = async () => {
 };
 $("#leaveBtn").onclick = () => {
   if (!confirm("Forlate familien på denne enheten? Listene blir liggende for de andre.")) return;
+  pushDisable(true);
   store.del("code");
   store.del("state:" + code);
   code = null;
@@ -1467,9 +1471,134 @@ $("#joinForm").onsubmit = (e) => {
   start(c);
 };
 
+
+// ---------- Varsler (Web Push) ----------
+// Hver enhet slår på selv. Valgene lagres på serveren sammen med abonnementet, og en kopi her.
+const deviceId = store.get("device") || (() => { const id = crypto.randomUUID(); store.set("device", id); return id; })();
+const PUSH_DEFAULTS = { remind: true, remindMin: 30, morning: true, morningAt: "07:00", dinner: true, dinnerAt: "15:00", changes: true };
+let pushPrefs = (() => { try { return { ...PUSH_DEFAULTS, ...JSON.parse(store.get("pushPrefs") || "{}") }; } catch { return { ...PUSH_DEFAULTS }; } })();
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const swReady = () => navigator.serviceWorker.register("/sw.js").then(() => navigator.serviceWorker.ready);
+const b64uToBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+const bytesToB64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const pushApi = (path, body) => fetch(`/api/push/${encodeURIComponent(code)}/${path}`, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}).then((r) => r.json());
+
+async function currentSub() {
+  if (!pushSupported() || Notification.permission !== "granted") return null;
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  return (await reg?.pushManager.getSubscription()) || null;
+}
+
+// Abonner (eller bytt nøkkel hvis enheten var med i en annen familie) og send valgene til serveren.
+async function pushEnable() {
+  if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") { renderPush(); return; }
+  const reg = await swReady();
+  const { key } = await pushApi("key");
+  let sub = await reg.pushManager.getSubscription();
+  if (sub && sub.options?.applicationServerKey && bytesToB64u(sub.options.applicationServerKey) !== key) { await sub.unsubscribe(); sub = null; }
+  sub ||= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(key) });
+  await pushSave(sub);
+  store.set("push", "on");
+  renderPush();
+}
+
+async function pushSave(sub) {
+  sub ||= await currentSub();
+  if (!sub) return;
+  const res = await pushApi("sub", { sub: sub.toJSON(), prefs: pushPrefs, device: deviceId });
+  if (!res.ok) toast("Kunne ikke lagre varslene");
+}
+
+async function pushDisable(quiet) {
+  store.del("push");
+  try {
+    const sub = await currentSub();
+    if (sub) {
+      if (code) await pushApi("unsub", { endpoint: sub.endpoint });
+      await sub.unsubscribe();
+    }
+  } catch {}
+  if (!quiet) renderPush();
+}
+
+async function renderPush() {
+  const info = $("#pushInfo");
+  const on = $("#pushOn");
+  const prefs = $("#pushPrefs");
+  on.hidden = true;
+  prefs.hidden = true;
+  info.hidden = false;
+  if (!pushSupported()) {
+    info.textContent = isIos() && !isStandalone()
+      ? "På iPhone og iPad må Uka ligge på Hjem-skjermen for å kunne gi varsler: trykk Del-knappen i Safari → «Legg til på Hjem-skjerm», åpne Uka derfra og slå på varsler her."
+      : "Denne nettleseren kan ikke vise varsler fra Uka.";
+    return;
+  }
+  if (Notification.permission === "denied") {
+    info.textContent = "Varsler er blokkert for Uka. Slå dem på i nettleserens eller telefonens innstillinger, og kom tilbake hit.";
+    return;
+  }
+  const sub = await currentSub();
+  if (!sub || store.get("push") !== "on") {
+    info.textContent = "Få påminnelser før avtaler, en morgenoversikt, beskjed om middagen og når familien legger til noe. Du velger selv hvilke.";
+    on.hidden = false;
+    return;
+  }
+  info.hidden = true;
+  prefs.hidden = false;
+  $("#pRemind").checked = pushPrefs.remind;
+  $("#pRemindMin").value = String(pushPrefs.remindMin);
+  $("#pMorning").checked = pushPrefs.morning;
+  $("#pMorningAt").value = pushPrefs.morningAt;
+  $("#pDinner").checked = pushPrefs.dinner;
+  $("#pDinnerAt").value = pushPrefs.dinnerAt;
+  $("#pChanges").checked = pushPrefs.changes;
+}
+
+{
+  const times = (from, to) => { const out = []; for (let m = from * 60; m <= to * 60; m += 30) out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${m % 60 ? "30" : "00"}`); return out; };
+  const fill = (sel, list) => sel.replaceChildren(...list.map((t) => new Option(`kl. ${t}`, t)));
+  fill($("#pMorningAt"), times(5, 10));
+  fill($("#pDinnerAt"), times(11, 18));
+}
+$("#pushOn").onclick = () => pushEnable().catch(() => { toast("Kunne ikke slå på varsler"); renderPush(); });
+$("#pushOff").onclick = () => pushDisable();
+$("#pushTest").onclick = async () => {
+  const sub = await currentSub();
+  if (!sub) return renderPush();
+  const res = await pushApi("test", { endpoint: sub.endpoint }).catch(() => ({}));
+  toast(res.ok ? "Testvarsel sendt" : "Testvarselet kom ikke fram");
+};
+for (const [id, key, kind] of [["pRemind", "remind", "b"], ["pRemindMin", "remindMin", "n"], ["pMorning", "morning", "b"], ["pMorningAt", "morningAt", "s"], ["pDinner", "dinner", "b"], ["pDinnerAt", "dinnerAt", "s"], ["pChanges", "changes", "b"]]) {
+  $("#" + id).onchange = (e) => {
+    pushPrefs[key] = kind === "b" ? e.target.checked : kind === "n" ? Number(e.target.value) : e.target.value;
+    store.set("pushPrefs", JSON.stringify(pushPrefs));
+    pushSave();
+  };
+}
+// Trykk på et varsel mens appen er åpen: gå til riktig fane.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data?.t === "vis" && ["home", "list", "menu", "cal"].includes(e.data.vis) && code) showView(e.data.vis);
+  });
+}
+// Hold serveren oppdatert (nytt abonnement fra nettleseren, ny familie o.l.) hver gang appen åpnes.
+function pushSync() {
+  if (store.get("push") === "on" && pushSupported() && Notification.permission === "granted") {
+    swReady().then(() => pushEnable()).catch(() => {});
+  }
+}
+
 // ---------- Oppstart ----------
 const params = new URLSearchParams(location.search);
 const fromLink = params.get("kode");
+// Åpnet fra et varsel: /?vis=menu osv.
+if (["home", "list", "menu", "cal"].includes(params.get("vis"))) {
+  view = params.get("vis");
+  if (!fromLink) history.replaceState(null, "", "/");
+}
 if (fromLink && CODE_RE.test(cleanCode(fromLink))) {
   history.replaceState(null, "", "/");
   start(cleanCode(fromLink));

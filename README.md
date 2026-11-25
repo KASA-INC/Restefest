@@ -40,6 +40,19 @@ npm run deploy     # oppdaterer workeren «handlelista» (https://uka-app.no)
 
 Forsiden har OpenGraph- og Twitter-metadata med tittel, beskrivelse og delingsbildet `public/og-image.png` (1200 × 630). Workeren gjør bilde- og side-adressene absolutte for domenet appen kjører på (`run_worker_first` i `wrangler.toml`), og familiekoden i invitasjonslenker tas ikke med i `og:url`.
 
+## Varsler
+
+Hver enhet kan slå på varsler under Innstillinger → Varsler, og velge hver type for seg:
+
+- **Påminnelse før avtaler** (10 min – 2 timer før; også avtaler fra andre kalendere)
+- **Morgenoversikt** med dagens avtaler, bursdager og middag (valgfritt klokkeslett)
+- **Middag i dag** fra ukemenyen, med antall varer på handlelisten
+- **Endringer fra familien**: nye varer og avtaler fra de *andre* enhetene, samlet i ett varsel etter halvannet minutt
+
+Teknikk: standard Web Push uten eksterne tjenester. `public/sw.js` viser varslene. `src/push.js` krypterer (RFC 8291) og signerer (VAPID, RFC 8292). `src/notify.js` regner ut hva som skal sendes når, i norsk tid. Hver familie får sitt eget VAPID-nøkkelpar, laget første gang og lagret i familiens Durable Object sammen med abonnementene. En Durable Object-alarm vekker familien når neste varsel skal ut. Det trengs ingen hemmeligheter eller ekstra oppsett i Cloudflare.
+
+På iPhone/iPad (iOS 16.4+) virker varsler bare når Uka er lagt på Hjem-skjermen.
+
 ## Skrifter og farger
 
 Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett. Nå brukes [Jost](https://github.com/indestructible-type/Jost) (geometrisk sans i Futura-tradisjonen) overalt; serifskriftene kan slås på igjen med tre CSS-variabler øverst i `style.css`: [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (de største titlene), [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
