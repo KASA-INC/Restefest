@@ -4,6 +4,7 @@ import { parseIcs } from "./ics.js";
 import { EVENT_ICON_IDS } from "../public/eventicons.js";
 import { makeVapid, sendPush } from "./push.js";
 import { changesPayload, cleanPrefs, dueBetween } from "./notify.js";
+import { isSkattUrl, skattEvents, skattIcs, skattKinds } from "./skatt.js";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -55,6 +56,18 @@ export default {
       if (m[2] === "sub") return json(await fam.pushSub(body));
       if (m[2] === "unsub") return json(await fam.pushUnsub(String(body.endpoint || "")));
       return json(await fam.pushTest(String(body.endpoint || "")));
+    }
+
+    // Frister fra Skatteetaten som kalender: /skatt.ics?k=person,enk,mva
+    if (url.pathname === "/skatt.ics") {
+      try {
+        const ics = skattIcs(await skattEvents(skattKinds(url.href)), url.host);
+        return new Response(ics.split("\r\n").map(fold).join("\r\n"), {
+          headers: { "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "public, max-age=21600" },
+        });
+      } catch (e) {
+        return new Response("Kunne ikke hente fristene fra Skatteetaten", { status: 502 });
+      }
     }
 
     // Kalenderabonnement: /cal/<kode>.ics (ukemeny) og /cal/<kode>/kalender.ics (avtaler)
@@ -155,6 +168,11 @@ export class Family extends DurableObject {
       await Promise.all(due.map(async (f) => {
         const prev = this.ext[f.id];
         try {
+          // Skatteetaten-frister hentes direkte (ikke via vår egen /skatt.ics-adresse).
+          if (isSkattUrl(f.url)) {
+            this.ext[f.id] = { fetched: now, events: await skattEvents(skattKinds(f.url), now - 31 * 864e5, now + 366 * 864e5) };
+            return;
+          }
           const res = await fetch(f.url, { headers: { "User-Agent": "Uka-kalender/1.0", Accept: "text/calendar,*/*" } });
           if (!res.ok) throw new Error(`Svarte ${res.status}`);
           const text = await res.text();

@@ -53,6 +53,16 @@ Teknikk: standard Web Push uten eksterne tjenester. `public/sw.js` viser varslen
 
 På iPhone/iPad (iOS 16.4+) virker varsler bare når Uka er lagt på Hjem-skjermen.
 
+## Frister fra Skatteetaten
+
+Skatteetaten har ingen kalenderfil, men publiserer skattekalenderen som RSS. `src/skatt.js` gjør den om til en kalender på `/skatt.ics?k=person,enk,mva` (velg utvalg med `k`):
+
+- `person`: skattemelding, skatteoppgjør, forskuddsskatt og skattekort
+- `enk`: skattemelding og forskuddsskatt for enkeltpersonforetak
+- `mva`: mva-melding (levering og betaling; ikke VOEC, omvendt avgiftsplikt eller kompensasjon)
+
+Familier som vil ha fristene, legger adressen inn under Innstillinger → Andre kalendere. Da hentes fristene direkte fra Skatteetaten. Adressen kan også abonneres på i Kalender på iPhone. Skatteetaten legger bare ut inneværende års datoer, så faste frister føres ett år fram som «(forventet)» til de offisielle datoene er publisert.
+
 ## Skrifter og farger
 
 Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett. Nå brukes [Jost](https://github.com/indestructible-type/Jost) (geometrisk sans i Futura-tradisjonen) overalt; serifskriftene kan slås på igjen med tre CSS-variabler øverst i `style.css`: [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (de største titlene), [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
