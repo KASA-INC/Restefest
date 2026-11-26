@@ -238,6 +238,7 @@ main { padding: 0 var(--sp-4); }
 #hMore { justify-self: start; padding: 0; }
 .card-sub { font-weight: 400; color: var(--muted); }
 .ev.info { cursor: default; }
+#hTomorrow .src { display: none; } /* ikke kildemerke (f.eks. «Spond») i «I morgen» */
 .ev.info .ev-time { color: var(--muted); font-weight: 500; }
 
 /* ---------- Lister ---------- */
