@@ -599,3 +599,4 @@ body { letter-spacing: 0.005em; }
 .place-hits { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
 .place-hits button { width: 100%; text-align: left; background: var(--surface); border: 0; border-radius: 12px; padding: 9px 12px; display: grid; }
 .place-hits small { color: var(--muted); font-size: 13px; }
+.day-evs .wx-line .i { color: var(--accent); }

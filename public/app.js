@@ -1351,6 +1351,15 @@ function renderHome() {
   const tm = new Date(now); tm.setDate(now.getDate() + 1);
   const tmDinner = state.menu[isoWeek(tm).key]?.[(tm.getDay() + 6) % 7]?.dish;
   const lines = [];
+  const tw = wxFor(isoDate(tm));
+  if (tw) {
+    const { icon: ic, label } = wxInfo(tw.sym);
+    const li = document.createElement("li");
+    li.className = "wx-line";
+    li.innerHTML = icon(ic, "i sm");
+    li.append(` ${label} ${deg(tw.min)} / ${deg(tw.max)}` + (tw.rain >= 0.5 ? ` · ${mm(tw.rain)}` : ""));
+    lines.push(li);
+  }
   if (tmDinner) {
     const li = document.createElement("li");
     li.innerHTML = icon("chef-recipe-book", "i sm");
