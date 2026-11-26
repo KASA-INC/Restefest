@@ -67,9 +67,17 @@ Familier som vil ha fristene, legger adressen inn under Innstillinger → Andre 
 
 Under Innstillinger → Vær velger familien et sted, med søk i Kartverkets stedsnavn eller «Bruk min posisjon». Værvarselet fra Meteorologisk institutt (api.met.no, samme som Yr) vises på «I dag» (symbol, min./maks. og nedbør), i ukemenyen (symbol og makstemperatur) og i ukevisningen i kalenderen. `src/weather.js` henter varselet via workeren (`/api/weather`) med User-Agent og mellomlagring, slik MET krever, og lager én oversikt per dag med symbolet midt på dagen. Ikonene er Arcticons sine vær-emojier.
 
-## Skrifter og farger
+## Skrifter, farger og størrelser
 
-Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett. Nå brukes [Jost](https://github.com/indestructible-type/Jost) (geometrisk sans i Futura-tradisjonen) overalt; serifskriftene kan slås på igjen med tre CSS-variabler øverst i `style.css`: [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (de største titlene), [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.
+Jost brukes overalt. Alle mål i `public/style.css` kommer fra variabler øverst i fila:
+
+- **Skrift:** 7 trinn – 11 (merkelapper), 12, 14, 16 (brødtekst og felt; 16 hindrer zoom i Safari), 18, 22, 28 px. Vekter 400/500/600.
+- **Avstand:** 4, 8, 12, 16, 20, 24 px.
+- **Hjørner:** 6, 10, 12, 16, 20 px og pille.
+- **Kontrollhøyder:** 44 px (felt og hovedknapper), 36 px (segmentknapper, rett-felt, piller), 30 px (små ikonknapper).
+- **Ikoner:** 22 og 16 px.
+
+Trengs en ny verdi, vurder først om den kan bli et av trinnene.
 
 ## Logo og appikon
 
