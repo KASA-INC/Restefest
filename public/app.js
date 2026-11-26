@@ -1370,7 +1370,6 @@ function renderHome() {
   if (tmDinner) lines.push(infoRow("Middag", "chef-recipe-book", tmDinner));
   for (const ev of eventsOn(tmIso)) lines.push(evItem(ev, null, tmIso));
   $("#hTomorrow").replaceChildren(...lines);
-  $("#hTmIcon").setAttribute("href", "#i-day-" + tm.getDate()); // kalenderblad med morgendagens dato
   $("#hTmDay").textContent = DAYS[(tm.getDay() + 6) % 7].toLowerCase();
   $("#hTomorrowCard").hidden = !lines.length;
 }
