@@ -579,3 +579,23 @@ body { letter-spacing: 0.005em; }
 .push-row:has(input:not(:checked)) select { opacity: .45; }
 .push-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .push-actions .btn { width: auto; }
+
+/* Vær */
+.wx { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--muted); }
+.wx .i { width: 22px; height: 22px; color: var(--accent); stroke-width: 2.6; }
+.home-wx { margin: -8px 2px 14px; font-size: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--text); }
+.home-wx .wx { color: var(--text); font-weight: 500; }
+.home-wx .wx .i { width: 26px; height: 26px; }
+.home-wx .wx-more { color: var(--muted); }
+.home-wx .link-btn { padding: 0; font-size: 15px; }
+.mlabel .wx { font-size: 12px; margin-top: 4px; gap: 2px; }
+.mlabel .wx .i { width: 18px; height: 18px; stroke-width: 3; }
+#calDays .day-head .wx { font-size: 13px; }
+#calDays .day-head .wx .i { width: 20px; height: 20px; }
+.place-now { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border-radius: 14px; padding: 10px 14px; margin-bottom: 8px; }
+.place-now .i { color: var(--accent); }
+.place-search { position: relative; margin-bottom: 8px; }
+.place-search input { width: 100%; }
+.place-hits { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
+.place-hits button { width: 100%; text-align: left; background: var(--surface); border: 0; border-radius: 12px; padding: 9px 12px; display: grid; }
+.place-hits small { color: var(--muted); font-size: 13px; }

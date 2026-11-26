@@ -120,7 +120,8 @@ function connect() {
       state = msg.state;
       store.set("state:" + code, JSON.stringify(state));
       render();
-      if ($("#settings").open) renderFeeds();
+      fetchWeather();
+      if ($("#settings").open) { renderFeeds(); renderPlace(); }
     }
   };
   ws.onclose = () => {
@@ -568,6 +569,9 @@ function renderMenu() {
     const iso = isoDate(date);
     card.querySelector(".day-evs").replaceChildren(...eventsOn(iso).map((ev) => evLine(ev, iso)));
     card.querySelector(".mlabel b").classList.toggle("red-day", redDay(iso));
+    card.querySelector(".mlabel .wx")?.remove();
+    const chip = wxChip(iso, "max");
+    if (chip) card.querySelector(".mlabel").append(chip);
     fillDinner(card.querySelector(".dish"), card.querySelector(".rlink"), week[i]);
   });
 }
@@ -869,6 +873,8 @@ function renderWeekCal() {
     card.onclick = (e) => { const ev = e.target.closest(".ev"); if (!ev || ev.classList.contains("holiday")) openEvent({ date: iso }); };
     card.querySelector(".evs").replaceChildren(...eventsOn(iso).map((ev) => evItem(ev, null, iso)));
     card.querySelector(".day-name").classList.toggle("red-day", redDay(iso));
+    const chip = wxChip(iso, "range");
+    if (chip) card.querySelector(".day-head .muted").after(chip);
     return card;
   });
   $("#calDays").replaceChildren(...cards);
@@ -1315,6 +1321,7 @@ function renderHome() {
   const hol = showHolidays ? holidaysOn(isoDate(now)).map((h) => h.title) : [];
   $("#homeDate").textContent = [`Uke ${isoWeek(now).w}`, ...hol].join(" · ");
   $("#homeDate").classList.toggle("red-day", showHolidays && redDay(isoDate(now)));
+  renderHomeWx(isoDate(now));
 
   // Middag i dag
   $("#hDish").placeholder = day === 4 ? "Taco" : "Hva blir det til middag?";
@@ -1390,6 +1397,7 @@ $("#settingsBtn").onclick = () => {
   $("#showHolidays").checked = showHolidays;
   $("#soundOn").checked = soundOn;
   renderPush();
+  renderPlace();
   $("#settings").showModal();
 };
 // ---------- Andre kalendere ----------
@@ -1590,6 +1598,142 @@ function pushSync() {
     swReady().then(() => pushEnable()).catch(() => {});
   }
 }
+
+
+// ---------- Vær (MET/Yr via /api/weather) ----------
+// Symbolkodene fra MET → ikon (Arcticons) og tekst.
+const WX = [
+  [/thunder/, "thunder", "Torden"],
+  [/sleet/, "snow", "Sludd"],
+  [/snowshowers/, "snow", "Snøbyger"],
+  [/lightsnow/, "snow", "Lett snø"],
+  [/snow/, "snow", "Snø"],
+  [/rainshowers/, "showers", "Regnbyger"],
+  [/lightrain/, "rain", "Lett regn"],
+  [/heavyrain/, "rain", "Kraftig regn"],
+  [/rain/, "rain", "Regn"],
+  [/fog/, "cloud", "Tåke"],
+  [/partlycloudy/, "partly", "Delvis skyet"],
+  [/cloudy/, "cloud", "Skyet"],
+  [/fair/, "fair", "Lettskyet"],
+  [/clearsky/, "sun", "Klarvær"],
+];
+const wxInfo = (sym) => { const m = WX.find(([re]) => re.test(sym)); return m ? { icon: "wx-" + m[1], label: m[2] } : { icon: "wx-cloud", label: "" }; };
+const deg = (t) => `${t < 0 ? "−" : ""}${Math.abs(t)}°`;
+const mm = (r) => (r >= 1 ? `${Math.round(r)} mm` : `${String(r).replace(".", ",")} mm`);
+let wx = (() => { try { return JSON.parse(store.get("wx") || "null"); } catch { return null; } })();
+let wxBusy = false;
+const placeKey = () => (state.place ? `${state.place.lat},${state.place.lon}` : "");
+const wxFor = (iso) => (wx && wx.key === placeKey() ? wx.days[iso] : null);
+
+async function fetchWeather(force = false) {
+  const key = placeKey();
+  if (!key || wxBusy) return;
+  if (!force && wx?.key === key && Date.now() - wx.at < 30 * 60e3) return;
+  wxBusy = true;
+  try {
+    const res = await fetch(`/api/weather?lat=${state.place.lat}&lon=${state.place.lon}`);
+    const data = await res.json();
+    if (!data.days?.length) return;
+    wx = { key, at: Date.now(), days: Object.fromEntries(data.days.map((d) => [d.date, d])) };
+    store.set("wx", JSON.stringify(wx));
+    renderHome();
+    renderMenu();
+    if (calMode === "week") renderWeekCal();
+  } catch {} finally {
+    wxBusy = false;
+  }
+}
+
+// Liten værbrikke: "full" (I dag), "max" (ukemenyen) eller "range" (ukevisningen).
+function wxChip(iso, mode) {
+  const d = wxFor(iso);
+  if (!d) return null;
+  const { icon: ic, label } = wxInfo(d.sym);
+  const el = document.createElement("span");
+  el.className = "wx";
+  el.title = `${label}, ${deg(d.min)} til ${deg(d.max)}${d.rain >= 0.5 ? `, ${mm(d.rain)} nedbør` : ""}`;
+  const text = mode === "full" ? `${label} ${deg(d.min)} / ${deg(d.max)}` : mode === "range" ? `${deg(d.max)} / ${deg(d.min)}` : deg(d.max);
+  el.innerHTML = icon(ic) + "<span></span>";
+  el.lastChild.textContent = text;
+  return el;
+}
+
+function renderHomeWx(iso) {
+  const box = $("#homeWx");
+  if (!state.place) {
+    box.hidden = false;
+    box.replaceChildren();
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "link-btn"; b.textContent = "Vis været – velg sted";
+    b.onclick = () => { $("#settingsBtn").click(); setTimeout(() => $("#placeHead").scrollIntoView({ block: "start" }), 50); };
+    box.append(b);
+    return;
+  }
+  const chip = wxChip(iso, "full");
+  box.hidden = !chip;
+  if (!chip) return box.replaceChildren();
+  const d = wxFor(iso);
+  const more = document.createElement("span");
+  more.className = "wx-more";
+  more.textContent = [d.rain >= 0.5 ? mm(d.rain) : "Opphold", state.place.name].join(" · ");
+  box.replaceChildren(chip, more);
+}
+
+// Stedvalg i innstillingene
+function renderPlace() {
+  $("#placeNow").hidden = !state.place;
+  if (state.place) $("#placeName").textContent = state.place.name;
+  $("#placeGeo").hidden = !("geolocation" in navigator);
+}
+function setPlace(place) {
+  state.place = place || undefined;
+  if (!place) delete state.place;
+  send({ t: "place", place: place || null });
+  $("#placeInput").value = "";
+  $("#placeHits").replaceChildren();
+  renderPlace();
+  renderHome();
+  renderMenu();
+  if (calMode === "week") renderWeekCal();
+  fetchWeather(true);
+}
+{
+  let t;
+  $("#placeInput").oninput = (e) => {
+    clearTimeout(t);
+    const q = e.target.value.trim();
+    if (q.length < 2) return $("#placeHits").replaceChildren();
+    t = setTimeout(async () => {
+      const hits = await fetch(`/api/place?q=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => []);
+      if ($("#placeInput").value.trim() !== q) return;
+      $("#placeHits").replaceChildren(...hits.map((h) => {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.innerHTML = "<b></b><small></small>";
+        b.firstChild.textContent = h.name;
+        b.lastChild.textContent = h.sub;
+        b.onclick = () => setPlace({ name: h.name, lat: h.lat, lon: h.lon });
+        li.append(b);
+        return li;
+      }));
+    }, 250);
+  };
+  $("#placeInput").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); $("#placeHits button")?.click(); } };
+  $("#placeDel").onclick = () => setPlace(null);
+  $("#placeGeo").onclick = () => {
+    $("#placeGeo").textContent = "Finner posisjonen …";
+    navigator.geolocation.getCurrentPosition(async (p) => {
+      const lat = Math.round(p.coords.latitude * 100) / 100, lon = Math.round(p.coords.longitude * 100) / 100;
+      const r = await fetch(`/api/place?lat=${lat}&lon=${lon}`).then((x) => x.json()).catch(() => ({}));
+      $("#placeGeo").textContent = "Bruk min posisjon";
+      setPlace({ name: r.name || "Min posisjon", lat, lon });
+    }, () => { $("#placeGeo").textContent = "Bruk min posisjon"; toast("Fikk ikke tilgang til posisjonen"); }, { maximumAge: 600000, timeout: 15000 });
+  };
+}
+setInterval(() => fetchWeather(), 15 * 60e3);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) fetchWeather(); });
 
 // ---------- Oppstart ----------
 const params = new URLSearchParams(location.search);

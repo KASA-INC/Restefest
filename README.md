@@ -63,6 +63,10 @@ Skatteetaten har ingen kalenderfil, men publiserer skattekalenderen som RSS. `sr
 
 Familier som vil ha fristene, legger adressen inn under Innstillinger → Andre kalendere. Da hentes fristene direkte fra Skatteetaten. Adressen kan også abonneres på i Kalender på iPhone. Skatteetaten legger bare ut inneværende års datoer, så faste frister føres ett år fram som «(forventet)» til de offisielle datoene er publisert.
 
+## Vær
+
+Under Innstillinger → Vær velger familien et sted, med søk i Kartverkets stedsnavn eller «Bruk min posisjon». Værvarselet fra Meteorologisk institutt (api.met.no, samme som Yr) vises på «I dag» (symbol, min./maks. og nedbør), i ukemenyen (symbol og makstemperatur) og i ukevisningen i kalenderen. `src/weather.js` henter varselet via workeren (`/api/weather`) med User-Agent og mellomlagring, slik MET krever, og lager én oversikt per dag med symbolet midt på dagen. Ikonene er Arcticons sine vær-emojier.
+
 ## Skrifter og farger
 
 Varm palett (krem, espresso, terrakotta) med egen mørk modus. Skriftene ligger i `public/fonts/` og lastes ikke fra nett. Nå brukes [Jost](https://github.com/indestructible-type/Jost) (geometrisk sans i Futura-tradisjonen) overalt; serifskriftene kan slås på igjen med tre CSS-variabler øverst i `style.css`: [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (de største titlene), [Fraunces](https://github.com/undercasetype/Fraunces) (overskrifter) og [Lora](https://github.com/cyrealtype/Lora-Cyrillic) (tekst), begge under SIL Open Font License, hentet via Fontsource.

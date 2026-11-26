@@ -5,6 +5,7 @@ import { EVENT_ICON_IDS } from "../public/eventicons.js";
 import { makeVapid, sendPush } from "./push.js";
 import { changesPayload, cleanPrefs, dueBetween } from "./notify.js";
 import { isSkattUrl, skattEvents, skattIcs, skattKinds } from "./skatt.js";
+import { forecast, nearestPlace, roundCoord, searchPlace } from "./weather.js";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -29,9 +30,29 @@ const DEVICE_RE = /^[a-z0-9-]{8,40}$/;
 const normCode = (s) => decodeURIComponent(s).normalize("NFC").trim().toLowerCase();
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     let m;
+
+    // Vær: /api/weather?lat=..&lon=..  (dagsoversikt fra MET, mellomlagret)
+    if (url.pathname === "/api/weather") {
+      const lat = roundCoord(url.searchParams.get("lat")), lon = roundCoord(url.searchParams.get("lon"));
+      if (!(lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180)) return new Response("Ugyldig posisjon", { status: 400 });
+      try {
+        return await forecast(lat, lon, ctx);
+      } catch {
+        return new Response(JSON.stringify({ days: [] }), { status: 502, headers: { "Content-Type": "application/json" } });
+      }
+    }
+    // Stedssøk: /api/place?q=Bryne  eller  /api/place?lat=..&lon=.. (nærmeste sted)
+    if (url.pathname === "/api/place") {
+      const json = (v) => new Response(JSON.stringify(v), { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=86400" } });
+      const q = (url.searchParams.get("q") || "").trim().slice(0, 60);
+      if (q) return json(await searchPlace(q).catch(() => []));
+      const lat = roundCoord(url.searchParams.get("lat")), lon = roundCoord(url.searchParams.get("lon"));
+      if (!(lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180)) return json({ name: "" });
+      return json({ name: await nearestPlace(lat, lon), lat, lon });
+    }
 
     // Sanntidssynk: /api/ws/<kode>
     if ((m = url.pathname.match(/^\/api\/ws\/([^/]+)$/))) {
@@ -365,6 +386,15 @@ export class Family extends DurableObject {
         const n = st.events.length;
         st.events = st.events.filter((e) => e.id !== msg.id);
         return st.events.length !== n;
+      }
+      // Sted for værvarselet (felles for familien)
+      case "place": {
+        if (msg.place === null) { const had = !!st.place; delete st.place; return had; }
+        const name = str(msg.place?.name, 60);
+        const lat = Math.round(Number(msg.place?.lat) * 100) / 100, lon = Math.round(Number(msg.place?.lon) * 100) / 100;
+        if (!name || !(lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180)) return false;
+        st.place = { name, lat, lon };
+        return true;
       }
       case "menu": {
         const day = Number(msg.day);
