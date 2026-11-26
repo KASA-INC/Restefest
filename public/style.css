@@ -103,7 +103,7 @@ button { cursor: pointer; }
 .i.sm { width: var(--ic-sm); height: var(--ic-sm); vertical-align: -3px; stroke-width: 3; }
 
 /* Små etiketter over grupper: kursiv i stedet for STORE BOKSTAVER */
-.done-head h2, .agenda h3, .tomorrow h2 { font-size: var(--fs-sm); font-style: italic; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.done-head h2, .agenda h3 { font-size: var(--fs-sm); font-style: italic; font-weight: 500; letter-spacing: 0; color: var(--muted); }
 
 /* ---------- Felt ---------- */
 input, select {
@@ -236,7 +236,9 @@ main { padding: 0 var(--sp-4); }
 .home-date { margin: 2px 2px var(--sp-1); font-size: var(--fs-sm); font-style: italic; }
 #hNoEvents, #hEmpty { margin: 0; }
 #hMore { justify-self: start; padding: 0; }
-.tomorrow .day-evs { margin: 0; font-size: var(--fs-sm); gap: var(--sp-1); color: var(--text); }
+.card-sub { font-weight: 400; color: var(--muted); }
+.ev.info { cursor: default; }
+.ev.info .ev-time { color: var(--muted); font-weight: 500; }
 
 /* ---------- Lister ---------- */
 .pills { display: flex; gap: var(--sp-2); overflow-x: auto; margin: var(--sp-1) calc(-1 * var(--sp-4)) var(--sp-3); padding: 2px var(--sp-4); scrollbar-width: none; }
@@ -494,7 +496,6 @@ dialog::backdrop { background: rgb(45 28 18 / 0.45); }
 .mlabel .wx .i { width: var(--ic-sm); height: var(--ic-sm); stroke-width: 3; }
 #calDays .day-head .wx { font-size: var(--fs-xs); }
 #calDays .day-head .wx .i { width: 18px; height: 18px; }
-.day-evs .wx-line .i { color: var(--accent); }
 .place-now { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border-radius: var(--r-md); padding: var(--sp-2) var(--sp-3); }
 .place-now .i { color: var(--accent); }
 .place-search input { width: 100%; }

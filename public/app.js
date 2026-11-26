@@ -1347,27 +1347,31 @@ function renderHome() {
   $("#hAddInput").placeholder = hList === "oda" ? "Legg til på Oda-listen…" : "Legg til vare…";
   homeAdder.refresh();
 
-  // I morgen: middag og avtaler
+  // I morgen: vær, middag og avtaler – samme radoppsett som «Husk på»
   const tm = new Date(now); tm.setDate(now.getDate() + 1);
+  const tmIso = isoDate(tm);
   const tmDinner = state.menu[isoWeek(tm).key]?.[(tm.getDay() + 6) % 7]?.dish;
+  const infoRow = (label, ic, text) => {
+    const li = document.createElement("li");
+    const row = document.createElement("div");
+    row.className = "ev info";
+    row.innerHTML = `<span class="ev-time"></span><span class="ev-title">${icon(ic, "i sm lead")}</span>`;
+    row.firstChild.textContent = label;
+    row.lastChild.append(text);
+    li.append(row);
+    return li;
+  };
   const lines = [];
-  const tw = wxFor(isoDate(tm));
+  const tw = wxFor(tmIso);
   if (tw) {
     const { icon: ic, label } = wxInfo(tw.sym);
-    const li = document.createElement("li");
-    li.className = "wx-line";
-    li.innerHTML = icon(ic, "i sm");
-    li.append(` ${label} ${deg(tw.min)} / ${deg(tw.max)}` + (tw.rain >= 0.5 ? ` · ${mm(tw.rain)}` : ""));
-    lines.push(li);
+    lines.push(infoRow("Vær", ic, `${label} ${deg(tw.min)} / ${deg(tw.max)}` + (tw.rain >= 0.5 ? ` · ${mm(tw.rain)}` : "")));
   }
-  if (tmDinner) {
-    const li = document.createElement("li");
-    li.innerHTML = icon("chef-recipe-book", "i sm");
-    li.append(" " + tmDinner);
-    lines.push(li);
-  }
-  for (const ev of eventsOn(isoDate(tm))) lines.push(evLine(ev, isoDate(tm)));
+  if (tmDinner) lines.push(infoRow("Middag", "chef-recipe-book", tmDinner));
+  for (const ev of eventsOn(tmIso)) lines.push(evItem(ev, null, tmIso));
   $("#hTomorrow").replaceChildren(...lines);
+  $("#hTmIcon").setAttribute("href", "#i-" + (tw ? wxInfo(tw.sym).icon : "calendar"));
+  $("#hTmDay").textContent = DAYS[(tm.getDay() + 6) % 7].toLowerCase();
   $("#hTomorrowCard").hidden = !lines.length;
 }
 

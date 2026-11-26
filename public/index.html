@@ -187,9 +187,12 @@
           <button type="button" id="hMore" class="link-btn" data-go="list" hidden></button>
         </section>
 
-        <section id="hTomorrowCard" class="card tomorrow" hidden>
-          <div class="card-head"><h2>I morgen</h2></div>
-          <ul id="hTomorrow" class="day-evs"></ul>
+        <section id="hTomorrowCard" class="card" hidden>
+          <div class="card-head">
+            <h2><svg class="i" aria-hidden="true"><use id="hTmIcon" href="#i-calendar"/></svg> I morgen <span id="hTmDay" class="card-sub"></span></h2>
+            <button type="button" class="link-btn" data-go="cal">Kalender</button>
+          </div>
+          <ul id="hTomorrow" class="evs"></ul>
         </section>
       </div>
 
