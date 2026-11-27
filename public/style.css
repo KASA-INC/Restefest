@@ -80,36 +80,36 @@
 }
 
 /* Fargetema «Pion»: Blackberry #421b2e, Meadow Flower #907181, Pediment #d3ccc6,
-   Kurobeni #261922, Copper Moon #bf9e7f, Moscow Midnight #2b4850. Velges per enhet i innstillingene. */
+   Kurobeni #261922 og Copper Moon #bf9e7f. Velges per enhet i innstillingene. */
 :root[data-theme="pion"] {
-  --bg: #ebe5e0;            /* Pediment, lysnet */
-  --surface: #f8f5f2;
+  --bg: #ece4e6;            /* Pediment med et streif av Meadow Flower */
+  --surface: #faf6f7;
   --text: #261922;          /* Kurobeni */
-  --muted: #6f5a65;         /* Meadow Flower, mørknet for lesbarhet */
-  --line: #ddd3cf;
-  --accent: #2b4850;        /* Moscow Midnight */
-  --accent-ink: #f8f5f2;
-  --accent-soft: #dce5e6;   /* Moscow Midnight, lys */
+  --muted: #6c5762;
+  --line: #e0d3d9;
+  --accent: #76526a;        /* Meadow Flower, mørknet */
+  --accent-ink: #faf6f7;
+  --accent-soft: #e6d6df;   /* Meadow Flower, lys */
   --danger: #a3304a;
-  --honey: #907181;         /* Meadow Flower: «kobler til» og bursdager i måneden */
+  --honey: #bf9e7f;         /* Copper Moon: bursdager */
   --ok: #bf9e7f;            /* Copper Moon: tilkoblet */
-  --shadow: 0 1px 2px rgb(38 25 34 / 0.06), 0 6px 18px rgb(38 25 34 / 0.07);
+  --shadow: 0 1px 2px rgb(66 27 46 / 0.06), 0 6px 18px rgb(66 27 46 / 0.08);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme="pion"] {
-    --bg: #1c1219;          /* Kurobeni, mørkere */
-    --surface: #2a1a24;
-    --text: #ece6e1;        /* Pediment */
-    --muted: #ab929f;       /* Meadow Flower */
-    --line: #3d2734;
-    --accent: #d2b394;      /* Copper Moon, lysnet */
-    --accent-ink: #261922;
-    --accent-soft: #421b2e; /* Blackberry */
-    --danger: #e98a9c;
-    --honey: #907181;       /* Meadow Flower */
-    --ok: #bf9e7f;          /* Copper Moon: tilkoblet */
-    --shadow: none;
+    --bg: #421b2e;          /* Blackberry */
+    --surface: #55273d;     /* Blackberry, lysnet */
+    --text: #f1ebe6;        /* Pediment */
+    --muted: #cdb3c1;       /* Meadow Flower, lysnet */
+    --line: #67344d;
+    --accent: #d4b3c6;      /* Meadow Flower, lysnet */
+    --accent-ink: #2a1220;
+    --accent-soft: #6a3550;
+    --danger: #ffa3b4;
+    --honey: #bf9e7f;       /* Copper Moon */
+    --ok: #bf9e7f;          /* Copper Moon */
+    --shadow: 0 1px 2px rgb(20 6 14 / 0.25), 0 6px 18px rgb(20 6 14 / 0.25);
     color-scheme: dark;
   }
 }

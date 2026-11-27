@@ -1898,7 +1898,7 @@ function askProfileOnce() {
 }
 
 // ---------- Fargetema (per enhet) ----------
-const THEME_BG = { uka: ["#f6efe4", "#1d1712"], pion: ["#ebe5e0", "#1c1219"] };
+const THEME_BG = { uka: ["#f6efe4", "#1d1712"], pion: ["#ece4e6", "#421b2e"] };
 function applyTheme(t) {
   if (!THEME_BG[t]) t = "uka";
   if (t === "uka") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
