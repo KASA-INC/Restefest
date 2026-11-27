@@ -81,3 +81,18 @@ a { color: var(--accent); }
 .more { display: block; margin: 14px auto 0; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 18px; font-weight: 500; }
 .foot { margin-top: 32px; text-align: center; }
 .foot p { margin: 4px 0; }
+
+/* Basisvarer */
+.basics { border-top: 1px solid var(--line); padding-top: 10px; }
+.basics summary { cursor: pointer; font-weight: 600; font-size: 15px; list-style: none; display: flex; align-items: center; gap: 6px; }
+.basics summary::-webkit-details-marker { display: none; }
+.basics summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--accent); font-size: 20px; line-height: 1; }
+.basics[open] summary::before { transform: rotate(90deg); }
+.basics summary .muted { font-weight: 400; }
+.basics[open] { display: grid; gap: 10px; }
+.basics p { margin: 0; }
+.basic-chips button { background: var(--bg); border: 1px solid var(--line); color: var(--text); display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; }
+.basic-chips button::after { content: "×"; color: var(--muted); }
+.small-add input { min-height: 38px; }
+.small-add .primary { min-width: 38px; min-height: 38px; font-size: 20px; }
+.linkish { justify-self: start; border: 0; background: none; padding: 0; color: var(--accent); font-size: 14px; font-weight: 500; }

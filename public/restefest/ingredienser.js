@@ -85,7 +85,37 @@ export function matches(q, key) {
   return false;
 }
 
-// Basisvarer de fleste har: regnes som «har» når brukeren slår det på. Sammenlignes mot siste ord i nøkkelen,
-// så «sort pepper» er basis, men «chilipepper» ikke.
-export const BASICS = ["salt", "flaksalt", "havsalt", "pepper", "olje", "olivenolje", "rapsolje", "nøytral olje", "smør", "margarin", "vann", "sukker", "hvetemel", "mel", "melis", "eddik", "buljong", "buljongterning"];
-export const isBasic = (key) => BASICS.includes(key) || BASICS.includes(key.split(" ").pop()) || /^(salt|pepper)\b/.test(key) || /buljong|kraftterning/.test(key);
+// Basisvarer: det de fleste har i skapet. Brukeren kan endre listen i Restefest (lagres på enheten).
+export const DEFAULT_BASICS = [
+  "salt", "pepper", "sukker", "hvetemel", "vann",
+  "olje", "olivenolje", "smør",
+  "melk", "egg",
+  "ris", "pasta", "havregryn", "bakepulver", "natron", "maisenna", "buljong",
+  "løk", "hvitløk",
+  "soyasaus", "eddik", "sennep", "ketchup", "honning", "tomatpuré",
+  "paprikapulver", "karri", "kanel", "oregano", "timian",
+];
+// Ord som slutter likt, men ikke er basisvaren: «melk» dekker ikke kokosmelk, «smør» ikke peanøttsmør.
+const BASIC_NOT = {
+  melk: ["kokosmelk", "kjernemelk", "mandelmelk", "havremelk", "soyamelk", "rismelk", "melkesjokolade"],
+  smør: ["peanøttsmør", "nøttesmør", "kryddersmør", "hvitløkssmør", "mandelsmør", "smørbrød"],
+  løk: ["hvitløk", "gressløk", "purreløk", "vårløk"],
+  pasta: ["pastasaus"],
+  ris: ["risotto"],
+  olje: ["chiliolje", "trøffelolje"],
+  pepper: ["chilipepper", "spisspepper"],
+};
+const basicNorm = (b) => normQuery(b) || b;
+
+// Er ingrediensen `key` dekket av basisvarelisten?
+export function isBasic(key, list = DEFAULT_BASICS) {
+  if (/buljong|kraftterning/.test(key) && list.some((b) => /buljong/.test(b))) return true;
+  const words = key.split(" ");
+  return list.some((raw) => {
+    const b = basicNorm(raw);
+    if (key === b || words.at(-1) === b) return true;
+    if (GROUPS[b] && GROUPS[b].some((g) => words.some((w) => w.startsWith(g) || w.endsWith(g)))) return true;
+    // sammensatte ord som slutter på basisvaren: «hvetemel» → mel, «basmatiris» → ris, «lettmelk» → melk
+    return b.length >= 3 && words.some((w) => w.endsWith(b) && !(BASIC_NOT[b] || []).some((x) => w.startsWith(x)));
+  });
+}

@@ -1,6 +1,6 @@
 // Restefest: finn oppskrifter som bruker restene dine. Søket skjer her i nettleseren mot oppskriftsbasen
 // (oppskrifter.json), så det er raskt og gratis, og ingen data sendes noe sted.
-import { matches, normQuery, isBasic } from "./ingredienser.js";
+import { matches, normQuery, isBasic, DEFAULT_BASICS } from "./ingredienser.js";
 
 const $ = (s) => document.querySelector(s);
 const store = {
@@ -16,6 +16,7 @@ let db = null; // { sources, recipes: [[tittel, lenke, kilde, bilde, minutter, k
 let vocab = []; // ingredienser etter hvor ofte de brukes, til forslag
 let have = store.get("have", []);
 let useBasics = store.get("basics", true);
+let basics = store.get("basicsList", DEFAULT_BASICS);
 let maxMiss = store.get("miss", 99);
 let shown = PAGE;
 
@@ -30,7 +31,7 @@ async function load() {
   }
   const count = new Map();
   for (const r of db.recipes) for (const k of r[6]) count.set(k, (count.get(k) || 0) + 1);
-  vocab = [...count].filter(([k, n]) => n >= 3 && !isBasic(k)).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  vocab = [...count].filter(([k, n]) => n >= 3 && !isBasic(k, ["salt", "pepper", "vann", "sukker", "hvetemel", "buljong"])).sort((a, b) => b[1] - a[1]).map(([k]) => k);
   const s = db.sources;
   $("#sources").textContent = s.length > 1 ? `${s.slice(0, -1).join(", ")} og ${s.at(-1)}` : s[0];
   $("#built").textContent = `${db.recipes.length.toLocaleString("nb-NO")} oppskrifter, oppdatert ${new Date(db.built).toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" })}`;
@@ -55,7 +56,7 @@ function score(r) {
   for (const k of r[6]) {
     const hit = have.find((q) => matches(q, k));
     if (hit) used.push(k);
-    else if (!(useBasics && isBasic(k))) need.push(k);
+    else if (!(useBasics && isBasic(k, basics))) need.push(k);
   }
   return { used, need };
 }
@@ -125,6 +126,15 @@ function render() {
   }));
   $("#haveEmpty").hidden = have.length > 0;
   $("#basics").checked = useBasics;
+  $("#basicsCount").textContent = `(${basics.length})`;
+  $("#basicsList").replaceChildren(...basics.map((b) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.textContent = b; btn.setAttribute("aria-label", `Fjern ${b} fra basisvarene`);
+    btn.onclick = () => saveBasics(basics.filter((x) => x !== b));
+    li.append(btn);
+    return li;
+  }));
   document.querySelectorAll("[data-miss]").forEach((b) => b.classList.toggle("on", Number(b.dataset.miss) === maxMiss));
   const m = $("#matprat");
   m.hidden = !have.length;
@@ -178,6 +188,19 @@ $("#addInput").oninput = () => {
     return li;
   }));
 };
+function saveBasics(list) {
+  basics = list;
+  store.set("basicsList", basics);
+  shown = PAGE;
+  render();
+}
+$("#basicsForm").onsubmit = (e) => {
+  e.preventDefault();
+  const add = $("#basicsInput").value.split(/[,;]+/).map((x) => normQuery(x)).filter((x) => x && !basics.includes(x));
+  $("#basicsInput").value = "";
+  if (add.length) saveBasics([...basics, ...add]);
+};
+$("#basicsReset").onclick = () => { if (confirm("Tilbakestille basisvarene til standardlisten?")) saveBasics([...DEFAULT_BASICS]); };
 $("#addInput").onkeydown = (e) => {
   // Backspace i tomt felt fjerner det siste merket
   if (e.key === "Backspace" && !e.target.value && have.length) { have.pop(); save(); }

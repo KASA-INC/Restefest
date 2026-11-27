@@ -33,7 +33,17 @@
         <button type="button" class="ex">egg</button> <button type="button" class="ex">potet</button>
         <button type="button" class="ex">pasta</button> <button type="button" class="ex">brokkoli</button></p>
       <div class="opts">
-        <label class="check"><input type="checkbox" id="basics" checked> <span>Jeg har basisvarer <span class="muted">(salt, pepper, olje, smør, sukker, mel)</span></span></label>
+        <label class="check"><input type="checkbox" id="basics" checked> <span>Regn med basisvarene mine</span></label>
+        <details id="basicsBox" class="basics">
+          <summary>Basisvarer <span id="basicsCount" class="muted"></span></summary>
+          <p class="muted small">Ting du som regel har i skapet. Oppskrifter regner dem som noe du har, så de ikke står under «Mangler».</p>
+          <ul id="basicsList" class="chips basic-chips" aria-label="Basisvarene dine"></ul>
+          <form id="basicsForm" class="add small-add" autocomplete="off">
+            <input id="basicsInput" placeholder="Legg til basisvare …" enterkeyhint="done" aria-label="Legg til basisvare">
+            <button class="primary" aria-label="Legg til basisvare">+</button>
+          </form>
+          <button type="button" id="basicsReset" class="linkish">Tilbakestill til standardlisten</button>
+        </details>
         <div class="miss">
           <span>Kan mangle</span>
           <div class="seg" role="group" aria-label="Hvor mange ingredienser som kan mangle">
