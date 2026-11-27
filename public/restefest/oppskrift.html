@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Oppskrift – Restefest</title>
+  <meta name="theme-color" content="#ece4e6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#421b2e" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="restefest.css">
+  <style>
+    .hero { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 16px; background: var(--accent-soft); display: block; }
+    h1 { margin: 16px 0 4px; font-size: 30px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+    .meta { color: var(--muted); font-size: 15px; margin: 0 0 18px; }
+    .box { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 12px; }
+    h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+    .ing { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .ing li { display: grid; grid-template-columns: 90px 1fr; gap: 10px; }
+    .ing .amt { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ing .note { display: block; color: var(--muted); font-size: 14px; }
+    .steps { margin: 0; padding-left: 22px; display: grid; gap: 10px; }
+    .credit { color: var(--muted); font-size: 14px; text-align: center; margin-top: 20px; }
+    .back { display: inline-block; margin-bottom: 12px; text-decoration: none; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <main class="wrap" id="main"><p class="lead">Henter oppskriften …</p></main>
+  <script type="module">
+    // Viser en oppskrift fra TheMealDB som er oversatt til norsk (public/restefest/themealdb-no.json).
+    const id = new URLSearchParams(location.search).get("id");
+    const main = document.querySelector("#main");
+    const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+    try {
+      const data = await (await fetch("themealdb-no.json")).json();
+      const m = data.meals[id];
+      if (!m) throw new Error("ukjent");
+      document.title = `${m.title} – Restefest`;
+      const back = el("a", { className: "back", href: "/" }, "← Uka");
+      if (history.length > 1) back.onclick = (e) => { e.preventDefault(); history.back(); };
+      const img = el("img", { className: "hero", src: m.image, alt: m.title });
+      const ing = el("ul", { className: "ing" }, ...m.ingredients.map((i) => el("li", {}, el("span", { className: "amt" }, i.amount), el("span", {}, i.item, ...(i.note ? [el("span", { className: "note" }, i.note)] : [])))));
+      const steps = el("ol", { className: "steps" }, ...m.steps.map((s) => el("li", {}, s)));
+      const credit = el("p", { className: "credit" }, "Oppskrift og bilde fra ", el("a", { href: "https://www.themealdb.com/", target: "_blank", rel: "noopener" }, "TheMealDB"), ", oversatt til norsk av Uka.",
+        ...(m.source ? [" ", el("a", { href: m.source, target: "_blank", rel: "noopener" }, "Original")] : []), ` («${m.original}»).`);
+      main.replaceChildren(back, img, el("h1", {}, m.title),
+        el("p", { className: "meta" }, [m.category, m.area, m.minutes ? `ca. ${m.minutes} min` : "", m.servings ? `${m.servings} porsjoner` : ""].filter(Boolean).join(" · ")),
+        el("section", { className: "box" }, el("h2", {}, "Ingredienser"), ing),
+        el("section", { className: "box" }, el("h2", {}, "Slik gjør du"), steps), credit);
+    } catch {
+      main.replaceChildren(el("p", { className: "lead" }, "Fant ikke oppskriften."), el("a", { href: "/" }, "Til Uka"));
+    }
+  </script>
+</body>
+</html>

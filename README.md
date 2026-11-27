@@ -79,6 +79,14 @@ Fanen «Restefest» (mellom Lister og Ukemeny, og som egen side på `/restefest/
 - **Oppskriftsbasen** bygges med `node tools/hent-oppskrifter.mjs <mappe>` og `node tools/bygg-oppskriftsbase.mjs <mappe>`. Den inneholder bare tittel, lenke, bilde, tid, kategori og ingredienser i grunnform. Kilder: REMA 1000, Coop og KIWI. Matprat, TINE og MENY er ikke med fordi vilkårene deres forbyr det; sjekk vilkårene før en ny kilde legges til.
 - **Familiens oppskrifter:** når en oppskriftslenke legges i ukemenyen (eller limes inn i Restefest), leser serveren akkurat den siden og lagrer tittel, bilde og ingredienser i familien (`/api/recipes/<kode>`).
 - **«Søk på Matprat»** åpner Matprats eget søk med restene.
+- **TheMealDB (oversatt):** 790 internasjonale retter fra TheMealDB, oversatt til norsk med norske mål og ingredienser. Vises på vår egen side (`/restefest/oppskrift.html?id=…`) med kreditering av TheMealDB. Vilkårene deres tillater kopiering og endring via de offisielle endepunktene. Slik lages de (engangsjobb, krever `ANTHROPIC_API_KEY` og helst `THEMEALDB_KEY` som miljøvariabler; koster ca. 40–60 dollar med Claude Opus):
+  ```
+  npm install
+  node tools/hent-themealdb.mjs /tmp/themealdb-raw.json
+  node tools/oversett-themealdb.mjs /tmp/themealdb-raw.json 3      # prøv 3 retter først og se over public/restefest/themealdb-no.json
+  node tools/oversett-themealdb.mjs /tmp/themealdb-raw.json        # resten (kan avbrytes og kjøres igjen)
+  node tools/bygg-oppskriftsbase.mjs /tmp/ingen-cache    # uten mellomlager beholdes REMA/Coop/KIWI fra eksisterende base
+  ```
 - `public/restefest/ingredienser.js` gjør ingredienslinjer om til grunnform og avgjør hva som passer sammen (sammensatte ord, samlebegreper som «ost» og «sopp», unntak som løk ≠ hvitløk).
 
 ## Vær

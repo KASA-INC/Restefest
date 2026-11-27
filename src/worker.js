@@ -510,6 +510,7 @@ export class Family extends DurableObject {
       return { ok: false, error: "Ugyldig lenke" };
     }
     url.hash = "";
+    if (/(^|\.)uka-app\.no$/.test(url.hostname)) return { ok: false, error: "Oppskriften ligger allerede i Restefest" }; // våre egne (TheMealDB)
     const href = url.href;
     const have = this.state.recipes.find((r) => r.url === href);
     if (have) return { ok: true, recipe: have };
