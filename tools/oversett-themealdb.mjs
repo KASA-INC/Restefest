@@ -60,6 +60,7 @@ async function translate(m) {
     output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
     messages: [{ role: "user", content: text }],
   });
+  usage.input += res.usage.input_tokens; usage.output += res.usage.output_tokens; usage.n++;
   if (res.stop_reason === "refusal") throw new Error("avslått");
   if (res.stop_reason === "max_tokens") throw new Error("for langt svar");
   const block = res.content.find((b) => b.type === "text");
@@ -73,6 +74,7 @@ async function translate(m) {
 const todo = raw.filter((m) => !done.meals[m.idMeal]).slice(0, MAX);
 console.log(`${Object.keys(done.meals).length} ferdige, ${todo.length} igjen`);
 let n = 0, failed = 0;
+const usage = { input: 0, output: 0, n: 0 };
 const save = () => fs.writeFileSync(OUT, JSON.stringify(done));
 async function worker() {
   while (todo.length) {
@@ -81,7 +83,7 @@ async function worker() {
       done.meals[m.idMeal] = await translate(m);
     } catch (e) {
       failed++;
-      if (e instanceof Anthropic.AuthenticationError) { console.error("Ugyldig ANTHROPIC_API_KEY"); process.exit(1); }
+      if (e instanceof Anthropic.AuthenticationError) { console.error("API-nøkkelen ble avvist (401)"); process.exit(1); }
       if (e instanceof Anthropic.RateLimitError) { todo.push(m); await new Promise((r) => setTimeout(r, 30000)); continue; }
       console.error(`Feil på «${m.strMeal}»: ${e.message}`);
     }
@@ -90,4 +92,5 @@ async function worker() {
 }
 await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 save();
+console.log(`tokenbruk: ${usage.input} inn, ${usage.output} ut over ${usage.n} kall`);
 console.log(`ferdig: ${Object.keys(done.meals).length} retter i themealdb-no.json (${failed} feil)`);
