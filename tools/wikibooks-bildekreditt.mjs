@@ -8,7 +8,7 @@ const FILE = new URL("../public/restefest/wikibooks-no.json", import.meta.url);
 const HEADERS = { "User-Agent": "UkaRestefest/1.0 (oppskriftsimport; engangsjobb)" };
 const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const fileOf = (url) => decodeURIComponent((url.match(/\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)\//) || url.match(/\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)$/) || [])[1] || "");
+const fileOf = (u) => { const url = u.split("?")[0]; return decodeURIComponent((url.match(/\/thumb\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)\//) || url.match(/\/[0-9a-f]\/[0-9a-f]{2}\/([^/]+)$/) || [])[1] || ""); };
 const text = (html = "") => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 
 const meals = Object.values(data.meals).filter((m) => m.image);
