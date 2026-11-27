@@ -3,8 +3,8 @@
   "short_name": "Uka",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6efe4",
-  "theme_color": "#b5562f",
+  "background_color": "#ece4e6",
+  "theme_color": "#421b2e",
   "lang": "no",
   "icons": [
     {

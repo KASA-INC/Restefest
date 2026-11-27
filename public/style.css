@@ -9,20 +9,20 @@
 @font-face { font-family: "Jost"; src: url(fonts/jost-latin-wght-italic.woff2) format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
 
 :root {
-  /* Farger: krem, espresso og terrakotta */
-  --bg: #f6efe4;
-  --surface: #fffaf3;
-  --text: #3a2a20;
-  --muted: #8c7666;
-  --line: #eaddcb;
-  --accent: #b5562f;
-  --accent-ink: #fff8ef;
-  --accent-soft: #f6e2d3;
-  --danger: #a3322f;
-  --honey: #c9922f;
-  --ok: #7f9461;
+  /* Farger «Pion»: Blackberry #421b2e, Meadow Flower #907181, Pediment #d3ccc6, Kurobeni #261922, Copper Moon #bf9e7f */
+  --bg: #ece4e6;            /* Pediment med et streif av Meadow Flower */
+  --surface: #faf6f7;
+  --text: #261922;          /* Kurobeni */
+  --muted: #6c5762;
+  --line: #e0d3d9;
+  --accent: #76526a;        /* Meadow Flower, mørknet */
+  --accent-ink: #faf6f7;
+  --accent-soft: #e6d6df;   /* Meadow Flower, lys */
+  --danger: #a3304a;
+  --honey: #bf9e7f;         /* Copper Moon: bursdager */
+  --ok: #bf9e7f;            /* Copper Moon: tilkoblet */
   --track: color-mix(in srgb, var(--line) 75%, var(--bg)); /* bakgrunn i segmentvelgere */
-  --shadow: 0 1px 2px rgb(110 70 30 / 0.06), 0 6px 18px rgb(110 70 30 / 0.06);
+  --shadow: 0 1px 2px rgb(66 27 46 / 0.06), 0 6px 18px rgb(66 27 46 / 0.08);
   --sans: "Jost", "Futura", "Avenir Next", "Century Gothic", sans-serif;
 
   /* Skrift: 7 størrelser */
@@ -63,41 +63,6 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1d1712;
-    --surface: #29211a;
-    --text: #f2e7d9;
-    --muted: #b29e8b;
-    --line: #3b3027;
-    --accent: #e3895e;
-    --accent-ink: #26170f;
-    --accent-soft: #3e2a1f;
-    --danger: #f08a7c;
-    --honey: #e0b25e;
-    --ok: #a3b882;
-    --shadow: none;
-    color-scheme: dark;
-  }
-}
-
-/* Fargetema «Pion»: Blackberry #421b2e, Meadow Flower #907181, Pediment #d3ccc6,
-   Kurobeni #261922 og Copper Moon #bf9e7f. Velges per enhet i innstillingene. */
-:root[data-theme="pion"] {
-  --bg: #ece4e6;            /* Pediment med et streif av Meadow Flower */
-  --surface: #faf6f7;
-  --text: #261922;          /* Kurobeni */
-  --muted: #6c5762;
-  --line: #e0d3d9;
-  --accent: #76526a;        /* Meadow Flower, mørknet */
-  --accent-ink: #faf6f7;
-  --accent-soft: #e6d6df;   /* Meadow Flower, lys */
-  --danger: #a3304a;
-  --honey: #bf9e7f;         /* Copper Moon: bursdager */
-  --ok: #bf9e7f;            /* Copper Moon: tilkoblet */
-  --shadow: 0 1px 2px rgb(66 27 46 / 0.06), 0 6px 18px rgb(66 27 46 / 0.08);
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="pion"] {
     --bg: #421b2e;          /* Blackberry */
     --surface: #55273d;     /* Blackberry, lysnet */
     --text: #f1ebe6;        /* Pediment */
@@ -565,9 +530,3 @@ dialog::backdrop { background: color-mix(in srgb, var(--text) 45%, transparent);
 .list-tools { flex-wrap: wrap; row-gap: 0; }
 .pills .count { margin-left: 4px; }
 
-/* Fargetema-velger */
-.theme-pick { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
-.theme-pick button { display: grid; gap: 6px; justify-items: start; padding: 10px var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); text-align: left; font-weight: 500; }
-.theme-pick button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.theme-pick .sw { display: flex; }
-.theme-pick .sw i { width: 18px; height: 18px; border-radius: 50%; margin-right: -4px; box-shadow: 0 0 0 2px var(--surface); }

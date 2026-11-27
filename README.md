@@ -78,7 +78,7 @@ Under Innstillinger → Vær velger familien et sted, med søk i Kartverkets ste
 
 ## Skrifter, farger og størrelser
 
-Jost brukes overalt. Alle mål i `public/style.css` kommer fra variabler øverst i fila:
+Jost brukes overalt. Alle farger og mål i `public/style.css` kommer fra variabler øverst i fila:
 
 - **Skrift:** 7 trinn – 11 (merkelapper), 12, 14, 16 (brødtekst og felt; 16 hindrer zoom i Safari), 18, 22, 28 px. Vekter 400/500/600.
 - **Avstand:** 4, 8, 12, 16, 20, 24 px.
@@ -88,7 +88,7 @@ Jost brukes overalt. Alle mål i `public/style.css` kommer fra variabler øverst
 
 Trengs en ny verdi, vurder først om den kan bli et av trinnene.
 
-**Fargetemaer** velges per enhet under Innstillinger → Farger: *Terrakotta* (standard) og *Pion* (Blackberry som bakgrunn i mørk variant, Meadow Flower som aksent, Pediment, Kurobeni og Copper Moon). Begge har lys og mørk variant. Et tema er bare et sett fargevariabler under `:root[data-theme="…"]` i `style.css`; et lite skript i `<head>` setter det før siden tegnes, så det ikke blinker.
+**Farger («Pion»):** Blackberry, Meadow Flower, Pediment, Kurobeni og Copper Moon. Lys variant: lys Pediment-bakgrunn, Kurobeni-tekst og mørknet Meadow Flower som aksent. Mørk variant: Blackberry-bakgrunn, Pediment-tekst og lysnet Meadow Flower som aksent. Copper Moon brukes på tilkoblingsprikken og bursdager. Variablene står øverst i `style.css`.
 
 ## Logo og appikon
 

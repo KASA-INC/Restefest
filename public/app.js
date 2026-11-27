@@ -1897,16 +1897,7 @@ function askProfileOnce() {
   openProfiles();
 }
 
-// ---------- Fargetema (per enhet) ----------
-const THEME_BG = { uka: ["#f6efe4", "#1d1712"], pion: ["#ece4e6", "#421b2e"] };
-function applyTheme(t) {
-  if (!THEME_BG[t]) t = "uka";
-  if (t === "uka") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
-  document.querySelectorAll('meta[name="theme-color"]').forEach((m, i) => m.setAttribute("content", THEME_BG[t][i] || THEME_BG[t][0]));
-  document.querySelectorAll("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themePick === t)));
-}
-document.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => { store.set("theme", b.dataset.themePick); applyTheme(b.dataset.themePick); }));
-applyTheme(store.get("theme") || "uka");
+try { localStorage.removeItem("theme"); } catch {} // fargevalget er fjernet
 
 // ---------- Oppstart ----------
 const params = new URLSearchParams(location.search);
