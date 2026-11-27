@@ -17,7 +17,6 @@ let vocab = []; // ingredienser etter hvor ofte de brukes, til forslag
 let have = store.get("have", []);
 let useBasics = store.get("basics", true);
 let basics = store.get("basicsList", DEFAULT_BASICS);
-let maxMiss = store.get("miss", 99);
 let minUse = store.get("use", 1); // hvor mange av restene en oppskrift minst må bruke (99 = alle)
 let shown = PAGE;
 
@@ -68,15 +67,14 @@ function search() {
   const seen = new Set(mine.map((r) => r[1]));
   for (const r of [...mine, ...(db ? db.recipes.filter((x) => !seen.has(x[1])) : [])]) {
     const s = score(r);
-    if (!s.used.length || s.need.length > maxMiss) continue;
+    if (!s.used.length) continue;
     // Hvor mange av restene dine oppskriften bruker (ikke hvor mange linjer som treffer)
     const restsUsed = have.filter((q) => r[6].some((k) => matches(q, k))).length;
     if (restsUsed < Math.min(minUse, have.length)) continue;
     out.push({ r, ...s, restsUsed });
   }
-  // Flest av restene dine og færrest som mangler: hver rest som brukes teller tre ganger så mye som en ingrediens som mangler.
-  const value = (x) => x.restsUsed * 3 - x.need.length;
-  out.sort((a, b) => value(b) - value(a) || a.need.length - b.need.length || (b.r[2] < 0) - (a.r[2] < 0) || (a.r[4] || 999) - (b.r[4] || 999));
+  // Først flest av restene dine, så færrest ingredienser som mangler, så familiens egne, så korteste tid.
+  out.sort((a, b) => b.restsUsed - a.restsUsed || a.need.length - b.need.length || (b.r[2] < 0) - (a.r[2] < 0) || (a.r[4] || 999) - (b.r[4] || 999));
   return out;
 }
 
@@ -137,7 +135,6 @@ function render() {
     li.append(btn);
     return li;
   }));
-  document.querySelectorAll("[data-miss]").forEach((b) => b.classList.toggle("on", Number(b.dataset.miss) === maxMiss));
   document.querySelectorAll("[data-use]").forEach((b) => {
     const n = Number(b.dataset.use);
     b.classList.toggle("on", n === minUse);
@@ -150,7 +147,7 @@ function render() {
   const hits = search();
   $("#status").textContent = !have.length ? "" : hits.length
     ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
-    : maxMiss < 99 || minUse > 1 ? "Ingen oppskrifter passer. Prøv å tillate flere manglende ingredienser, eller færre rester som må brukes." : "Ingen oppskrifter bruker dette.";
+    : minUse > 1 ? "Ingen oppskrifter bruker så mange av restene. Prøv et lavere tall under «Må bruke minst»." : "Ingen oppskrifter bruker dette.";
   $("#results").replaceChildren(...hits.slice(0, shown).map(card));
   $("#more").hidden = hits.length <= shown;
 }
@@ -219,7 +216,6 @@ $("#addInput").onpaste = (e) => {
 $("#tagbox").onclick = (e) => { if (e.target === e.currentTarget) $("#addInput").focus(); };
 document.querySelectorAll(".ex").forEach((b) => (b.onclick = () => add(b.textContent)));
 $("#basics").onchange = (e) => { useBasics = e.target.checked; store.set("basics", useBasics); shown = PAGE; render(); };
-document.querySelectorAll("[data-miss]").forEach((b) => (b.onclick = () => { maxMiss = Number(b.dataset.miss); store.set("miss", maxMiss); shown = PAGE; render(); }));
 document.querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { minUse = Number(b.dataset.use); store.set("use", minUse); shown = PAGE; render(); }));
 $("#more").onclick = () => { shown += PAGE; render(); };
 
