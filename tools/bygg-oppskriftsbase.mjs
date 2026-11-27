@@ -54,6 +54,19 @@ if (fs.existsSync(MEALDB)) {
   }
   console.log(`+ ${n} retter fra TheMealDB`);
 }
+// Oversatte oppskrifter fra Wikibooks-kokeboka (tools/oversett-wikibooks.mjs), CC BY-SA 4.0.
+const WIKIBOOKS = new URL("../public/restefest/wikibooks-no.json", import.meta.url);
+if (fs.existsSync(WIKIBOOKS)) {
+  const idx = sources.push("Wikibooks") - 1;
+  let n = 0;
+  for (const m of Object.values(JSON.parse(fs.readFileSync(WIKIBOOKS, "utf8")).meals)) {
+    const keys = [...new Set(m.ingredients.flatMap((i) => keysFromLine(i.item)))];
+    if (keys.length < 2) continue;
+    recipes.push([m.title, `https://uka-app.no/restefest/oppskrift.html?id=${m.id}`, idx, m.image, m.minutes || 0, [m.category], keys]);
+    n++;
+  }
+  console.log(`+ ${n} retter fra Wikibooks`);
+}
 recipes.sort((a, b) => a[0].localeCompare(b[0], "nb"));
 const data = { v: 1, built: new Date().toISOString().slice(0, 10), sources, recipes };
 fs.writeFileSync(OUT, JSON.stringify(data));

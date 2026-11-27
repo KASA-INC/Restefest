@@ -87,6 +87,14 @@ Fanen «Restefest» (mellom Lister og Ukemeny, og som egen side på `/restefest/
   node tools/oversett-themealdb.mjs /tmp/themealdb-raw.json        # resten (kan avbrytes og kjøres igjen)
   node tools/bygg-oppskriftsbase.mjs /tmp/ingen-cache    # uten mellomlager beholdes REMA/Coop/KIWI fra eksisterende base
   ```
+- **Wikibooks (oversatt):** inntil 700 oppskrifter fra den engelske [Wikibooks-kokeboka](https://en.wikibooks.org/wiki/Cookbook:Table_of_Contents), oversatt til norsk på samme måte og vist på `/restefest/oppskrift.html?id=wb…`. Bare oppskrifter med fullstendige mengder og fremgangsmåte er tatt med (`tools/velg-wikibooks.mjs` sorterer, og modellen forkaster det som likevel er ufullstendig). Tekstene er lisensiert under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), og oversettelsene i `public/restefest/wikibooks-no.json` deles under samme lisens. Hver side krediterer originalen og bidragsyterne, og bildene krediteres med fotograf og lisens fra Wikimedia. Slik lages de:
+  ```
+  node tools/hent-wikibooks.mjs /tmp/wikibooks-raw.json
+  node tools/velg-wikibooks.mjs /tmp/wikibooks-raw.json /tmp/wikibooks-utvalg.json 700
+  node tools/oversett-wikibooks.mjs /tmp/wikibooks-utvalg.json 19   # stopper ved 19 dollar; kan kjøres igjen
+  node tools/wikibooks-bildekreditt.mjs
+  node tools/bygg-oppskriftsbase.mjs /tmp/ingen-cache
+  ```
 - `public/restefest/ingredienser.js` gjør ingredienslinjer om til grunnform og avgjør hva som passer sammen (sammensatte ord, samlebegreper som «ost» og «sopp», unntak som løk ≠ hvitløk).
 
 ## Vær

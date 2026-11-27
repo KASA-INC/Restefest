@@ -26,22 +26,29 @@
 <body>
   <main class="wrap" id="main"><p class="lead">Henter oppskriften …</p></main>
   <script type="module">
-    // Viser en oppskrift fra TheMealDB som er oversatt til norsk (public/restefest/themealdb-no.json).
+    // Viser en oversatt oppskrift: TheMealDB (themealdb-no.json) eller Wikibooks-kokeboka (wikibooks-no.json, id «wb…»).
     const id = new URLSearchParams(location.search).get("id");
     const main = document.querySelector("#main");
     const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
     try {
-      const data = await (await fetch("themealdb-no.json")).json();
+      const wb = id?.startsWith("wb");
+      const data = await (await fetch(wb ? "wikibooks-no.json" : "themealdb-no.json")).json();
       const m = data.meals[id];
       if (!m) throw new Error("ukjent");
       document.title = `${m.title} – Restefest`;
       const back = el("a", { className: "back", href: "/" }, "← Uka");
       if (history.length > 1) back.onclick = (e) => { e.preventDefault(); history.back(); };
-      const img = el("img", { className: "hero", src: m.image, alt: m.title });
+      const img = m.image ? el("img", { className: "hero", src: m.image, alt: m.title }) : "";
       const ing = el("ul", { className: "ing" }, ...m.ingredients.map((i) => el("li", {}, el("span", { className: "amt" }, i.amount), el("span", {}, i.item, ...(i.note ? [el("span", { className: "note" }, i.note)] : [])))));
       const steps = el("ol", { className: "steps" }, ...m.steps.map((s) => el("li", {}, s)));
-      const credit = el("p", { className: "credit" }, "Oppskrift og bilde fra ", el("a", { href: "https://www.themealdb.com/", target: "_blank", rel: "noopener" }, "TheMealDB"), ", oversatt til norsk av Uka.",
-        ...(m.source ? [" ", el("a", { href: m.source, target: "_blank", rel: "noopener" }, "Original")] : []), ` («${m.original}»).`);
+      const link = (href, text) => el("a", { href, target: "_blank", rel: "noopener" }, text);
+      const credit = wb
+        ? el("p", { className: "credit" }, "Oppskriften er oversatt og tilpasset til norsk av Uka fra ", link(m.source, `«${m.original}»`),
+          " i ", link("https://en.wikibooks.org/wiki/Cookbook:Table_of_Contents", "Wikibooks-kokeboka"), ", skrevet av ", link(m.source.replace("/wiki/", "/w/index.php?action=history&title="), "Wikibooks-bidragsytere"),
+          ". Originalen og denne oversettelsen er lisensiert under ", link("https://creativecommons.org/licenses/by-sa/4.0/deed.no", "CC BY-SA 4.0"), ".",
+          ...(m.imageCredit ? [" Bilde: ", link(m.imageCredit.page, m.imageCredit.artist || "Wikimedia Commons"), m.imageCredit.license ? ` (${m.imageCredit.license})` : "", "."] : []))
+        : el("p", { className: "credit" }, "Oppskrift og bilde fra ", link("https://www.themealdb.com/", "TheMealDB"), ", oversatt til norsk av Uka.",
+          ...(m.source ? [" ", link(m.source, "Original")] : []), ` («${m.original}»).`);
       main.replaceChildren(back, img, el("h1", {}, m.title),
         el("p", { className: "meta" }, [m.category, m.area, m.minutes ? `ca. ${m.minutes} min` : "", m.servings ? `${m.servings} porsjoner` : ""].filter(Boolean).join(" · ")),
         el("section", { className: "box" }, el("h2", {}, "Ingredienser"), ing),
