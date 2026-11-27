@@ -34,6 +34,18 @@
         <button type="button" class="ex">pasta</button> <button type="button" class="ex">brokkoli</button></p>
       <div class="opts">
         <label class="check"><input type="checkbox" id="basics" checked> <span>Regn med basisvarene mine</span></label>
+        <div class="miss">
+          <span>Må bruke minst</span>
+          <div class="seg" role="group" aria-label="Hvor mange av restene oppskriften minst må bruke">
+            <button type="button" data-use="1">1</button><button type="button" data-use="2">2</button><button type="button" data-use="3">3</button><button type="button" data-use="99">Alle</button>
+          </div>
+        </div>
+        <div class="miss">
+          <span>Kan mangle</span>
+          <div class="seg" role="group" aria-label="Hvor mange ingredienser som kan mangle">
+            <button type="button" data-miss="0">0</button><button type="button" data-miss="1">1</button><button type="button" data-miss="2">2</button><button type="button" data-miss="3">3</button><button type="button" data-miss="99">Alle</button>
+          </div>
+        </div>
         <details id="basicsBox" class="basics">
           <summary>Basisvarer <span id="basicsCount" class="muted"></span></summary>
           <p class="muted small">Ting du som regel har i skapet. Oppskrifter regner dem som noe du har, så de ikke står under «Mangler».</p>
@@ -44,12 +56,6 @@
           </form>
           <button type="button" id="basicsReset" class="linkish">Tilbakestill til standardlisten</button>
         </details>
-        <div class="miss">
-          <span>Kan mangle</span>
-          <div class="seg" role="group" aria-label="Hvor mange ingredienser som kan mangle">
-            <button type="button" data-miss="0">0</button><button type="button" data-miss="1">1</button><button type="button" data-miss="2">2</button><button type="button" data-miss="3">3</button><button type="button" data-miss="99">Alle</button>
-          </div>
-        </div>
       </div>
     </section>
 

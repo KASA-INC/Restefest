@@ -57,9 +57,10 @@ a { color: var(--accent); }
 .check { display: flex; align-items: center; gap: 10px; font-size: 15px; }
 .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
 .miss { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-.seg { display: flex; gap: 2px; background: color-mix(in srgb, var(--line) 75%, var(--bg)); padding: 3px; border-radius: var(--r-md); }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 210px; gap: 2px; background: color-mix(in srgb, var(--line) 75%, var(--bg)); padding: 3px; border-radius: var(--r-md); }
 .seg button { border: 0; background: none; border-radius: var(--r-sm); min-width: 36px; padding: 5px 9px; font-size: 14px; font-weight: 600; color: var(--muted); }
 .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.seg button:disabled { opacity: .35; cursor: default; }
 
 .bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 18px 2px 8px; }
 .status { margin: 0; font-size: 14px; }

@@ -18,6 +18,7 @@ let have = store.get("have", []);
 let useBasics = store.get("basics", true);
 let basics = store.get("basicsList", DEFAULT_BASICS);
 let maxMiss = store.get("miss", 99);
+let minUse = store.get("use", 1); // hvor mange av restene en oppskrift minst må bruke (99 = alle)
 let shown = PAGE;
 
 async function load() {
@@ -70,6 +71,7 @@ function search() {
     if (!s.used.length || s.need.length > maxMiss) continue;
     // Hvor mange av restene dine oppskriften bruker (ikke hvor mange linjer som treffer)
     const restsUsed = have.filter((q) => r[6].some((k) => matches(q, k))).length;
+    if (restsUsed < Math.min(minUse, have.length)) continue;
     out.push({ r, ...s, restsUsed });
   }
   // Flest av restene dine og færrest som mangler: hver rest som brukes teller tre ganger så mye som en ingrediens som mangler.
@@ -136,6 +138,11 @@ function render() {
     return li;
   }));
   document.querySelectorAll("[data-miss]").forEach((b) => b.classList.toggle("on", Number(b.dataset.miss) === maxMiss));
+  document.querySelectorAll("[data-use]").forEach((b) => {
+    const n = Number(b.dataset.use);
+    b.classList.toggle("on", n === minUse);
+    b.disabled = n !== 99 && n > Math.max(have.length, 1); // «minst 3» gir ingen mening med to rester
+  });
   const m = $("#matprat");
   m.hidden = !have.length;
   m.href = `https://www.matprat.no/sok?category=recipes&page=1&searchFor=${encodeURIComponent(have.join(" "))}&sort=relevant`;
@@ -143,7 +150,7 @@ function render() {
   const hits = search();
   $("#status").textContent = !have.length ? "" : hits.length
     ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
-    : maxMiss < 99 ? "Ingen oppskrifter passer. Prøv å tillate flere manglende ingredienser." : "Ingen oppskrifter bruker dette.";
+    : maxMiss < 99 || minUse > 1 ? "Ingen oppskrifter passer. Prøv å tillate flere manglende ingredienser, eller færre rester som må brukes." : "Ingen oppskrifter bruker dette.";
   $("#results").replaceChildren(...hits.slice(0, shown).map(card));
   $("#more").hidden = hits.length <= shown;
 }
@@ -213,6 +220,7 @@ $("#tagbox").onclick = (e) => { if (e.target === e.currentTarget) $("#addInput")
 document.querySelectorAll(".ex").forEach((b) => (b.onclick = () => add(b.textContent)));
 $("#basics").onchange = (e) => { useBasics = e.target.checked; store.set("basics", useBasics); shown = PAGE; render(); };
 document.querySelectorAll("[data-miss]").forEach((b) => (b.onclick = () => { maxMiss = Number(b.dataset.miss); store.set("miss", maxMiss); shown = PAGE; render(); }));
+document.querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { minUse = Number(b.dataset.use); store.set("use", minUse); shown = PAGE; render(); }));
 $("#more").onclick = () => { shown += PAGE; render(); };
 
 $("#linkForm").onsubmit = async (e) => {
