@@ -302,6 +302,41 @@ export class Family extends DurableObject {
         this.remember(text, msg.list);
         return true;
       }
+      // Ingredienser fra en oppskrift: legges samlet, merket med retten de hører til (vises gruppert i listen).
+      case "addMany": {
+        const okList = LISTS.includes(msg.list) || st.lists.some((l) => l.id === msg.list);
+        const title = str(msg.group?.title, 80);
+        const url = /^https?:\/\//.test(msg.group?.url || "") ? str(msg.group.url, 500) : "";
+        const texts = Array.isArray(msg.texts) ? msg.texts.map((t) => str(t, 200)).filter(Boolean).slice(0, 60) : [];
+        if (!okList || !title || !texts.length) return false;
+        let n = 0;
+        for (const text of texts) {
+          if (st.items.length >= MAX_ITEMS) break;
+          const key = text.toLowerCase();
+          const ex = st.items.find((i) => i.list === msg.list && i.text.toLowerCase() === key);
+          if (ex && !ex.done) continue; // står allerede på listen
+          if (ex) { ex.done = false; ex.ts = Date.now(); ex.for = { title, url }; n++; continue; }
+          st.items.push({ id: crypto.randomUUID(), text, list: msg.list, done: false, ts: Date.now(), for: { title, url } });
+          this.remember(text, msg.list);
+          n++;
+        }
+        msg.added = n;
+        return n > 0;
+      }
+      // Fjern alle varene som hører til en rett (som ikke er handlet ennå).
+      case "delGroup": {
+        const title = str(msg.title, 80);
+        const n = st.items.length;
+        st.items = st.items.filter((i) => !(i.list === msg.list && !i.done && i.for?.title === title));
+        return st.items.length !== n;
+      }
+      // Løsne en vare fra retten den hørte til.
+      case "ungroup": {
+        const it = find(msg.id);
+        if (!it?.for) return false;
+        delete it.for;
+        return true;
+      }
       case "hide": {
         const kind = msg.kind === "dish" ? "dish" : msg.kind === "event" ? "event" : null;
         const key = str(msg.text, 200).toLowerCase();
@@ -620,6 +655,10 @@ export class Family extends DurableObject {
       const it = this.state.items[this.state.items.length - 1];
       const priv = this.state.lists.find((l) => l.id === it?.list)?.owner;
       if (it && !priv) change = { kind: "item", text: it.text, list: it.list, device, who }; // private lister varsles ikke
+    } else if (msg.t === "addMany") {
+      const priv = this.state.lists.find((l) => l.id === msg.list)?.owner;
+      const title = String(msg.group?.title || "").slice(0, 80);
+      if (!priv && msg.added) change = { kind: "item", text: `${msg.added} ${msg.added === 1 ? "vare" : "varer"} til «${title}»`, list: msg.list, device, who };
     } else if (msg.t === "evAdd") {
       const ev = this.state.events[this.state.events.length - 1];
       if (ev && ev.kind !== "bday") change = { kind: "event", title: ev.title, date: ev.date, time: ev.time, device, who };

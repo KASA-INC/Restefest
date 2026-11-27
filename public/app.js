@@ -239,9 +239,10 @@ function playDone() {
 document.addEventListener("pointerdown", () => { if (soundOn) { loadSounds(); actx?.resume(); } }, { once: true, capture: true });
 
 // ---------- Handleliste ----------
-function itemEl(it) {
+function itemEl(it, opts = {}) {
   const li = document.createElement("li");
   if (it.done) li.className = "done";
+  if (opts.inGroup) li.classList.add("in-grp");
   const btn = document.createElement("button");
   btn.className = "check";
   btn.innerHTML = '<span class="box"></span><span class="txt"></span>';
@@ -255,6 +256,8 @@ function itemEl(it) {
     txt.textContent = rest || host;
     if (rest) { const h = document.createElement("span"); h.className = "host"; h.textContent = " · " + host; txt.append(h); }
   } else txt.textContent = it.text;
+  // Utenfor gruppevisningen (startsiden, handlede varer) står retten varen hører til i grått bak.
+  if (it.for && !opts.inGroup) { const h = document.createElement("span"); h.className = "host"; h.textContent = " · " + it.for.title; txt.append(h); }
   btn.onclick = () => {
     it.done = !it.done; // umiddelbar respons lokalt
     if (it.done) playDone();
@@ -318,8 +321,8 @@ function renderList() {
   const mine = state.items.filter((i) => i.list === list);
   const todo = mine.filter((i) => !i.done);
   const done = mine.filter((i) => i.done).sort((a, b) => b.ts - a.ts);
-  $("#todo").replaceChildren(...todo.map(itemEl));
-  $("#done").replaceChildren(...done.map(itemEl));
+  $("#todo").replaceChildren(...groupedItems(todo, list));
+  $("#done").replaceChildren(...done.map((it) => itemEl(it)));
   $("#doneWrap").hidden = !done.length;
   $("#doneTitle").textContent = isShopping(list) ? "Handlet" : "Ferdig";
   $("#clearBtn").textContent = isShopping(list) ? "Fjern handlede" : "Fjern ferdige";
@@ -332,6 +335,55 @@ function renderList() {
   $("#privList").textContent = cur?.owner ? "Del med familien" : meP ? `Gjør privat for ${meP.name}` : "";
   $("#addInput").placeholder = list === "butikk" ? "Legg til vare…" : `Legg til på ${listName(list)}…`;
   listAdder.refresh();
+}
+
+// Varer uten rett først, så én gruppe per rett (ingredienser lagt til fra en oppskrift), eldste rett først.
+function groupedItems(todo, l) {
+  const loose = todo.filter((i) => !i.for);
+  const groups = new Map();
+  for (const it of todo.filter((i) => i.for)) {
+    const k = it.for.title;
+    if (!groups.has(k)) groups.set(k, { ...it.for, items: [], ts: it.ts });
+    const g = groups.get(k);
+    g.items.push(it);
+    g.ts = Math.min(g.ts, it.ts);
+  }
+  const out = loose.map((it) => itemEl(it));
+  for (const g of [...groups.values()].sort((a, b) => a.ts - b.ts)) {
+    const head = document.createElement("li");
+    head.className = "grp-head";
+    const name = document.createElement(g.url ? "a" : "span");
+    name.className = "grp-name";
+    name.textContent = g.title;
+    if (g.url) { name.href = g.url; name.target = "_blank"; name.rel = "noopener"; }
+    const n = document.createElement("span");
+    n.className = "grp-n";
+    n.textContent = `${g.items.length} ${g.items.length === 1 ? "vare" : "varer"}`;
+    const del = document.createElement("button");
+    del.className = "grp-del";
+    del.textContent = "Fjern";
+    del.setAttribute("aria-label", `Fjern varene til «${g.title}»`);
+    del.onclick = () => {
+      if (!confirm(`Fjerne ${g.items.length} ${g.items.length === 1 ? "vare" : "varer"} til «${g.title}» fra listen?`)) return;
+      const ids = new Set(g.items.map((i) => i.id));
+      state.items = state.items.filter((i) => !ids.has(i.id));
+      render();
+      send({ t: "delGroup", list: l, title: g.title });
+    };
+    head.append(name, n, del);
+    out.push(head, ...g.items.map((it) => itemEl(it, { inGroup: true })));
+  }
+  return out;
+}
+
+// Ingredienser fra en oppskrift (Restefest): legges samlet på listen, merket med retten.
+function addRecipeItems(texts, group, l = "butikk") {
+  const onList = new Set(state.items.filter((i) => i.list === l && !i.done).map((i) => i.text.toLowerCase()));
+  const fresh = texts.map((t) => t.trim()).filter((t) => t && !onList.has(t.toLowerCase()));
+  if (!fresh.length) { toast("Alt står allerede på listen"); return 0; }
+  send({ t: "addMany", list: l, group, texts: fresh.map((t) => state.history?.[t.toLowerCase()]?.text || t) });
+  toast(`${fresh.length} ${fresh.length === 1 ? "vare" : "varer"} til «${group.title}» lagt på ${l === "butikk" ? "handlelisten" : listName(l) + "-listen"}`, "Vis", () => { list = l; store.set("list", list); renderList(); showView("list"); });
+  return fresh.length;
 }
 
 function newList() {
@@ -1361,7 +1413,7 @@ function renderHome() {
     $(`[data-hcount="${l}"]`).textContent = n ? n : "";
   }
   const todo = state.items.filter((i) => i.list === hList && !i.done);
-  $("#hItems").replaceChildren(...todo.slice(0, 5).map(itemEl));
+  $("#hItems").replaceChildren(...todo.slice(0, 5).map((it) => itemEl(it)));
   $("#hEmpty").hidden = todo.length > 0;
   $("#hEmpty").textContent = hList === "oda" ? "Oda-listen er tom." : "Handlelisten er tom.";
   $("#hMore").hidden = todo.length <= 5;
@@ -1933,6 +1985,11 @@ function mountRest() {
         render();
       },
       importLink: async (url) => (await fetch(`/api/recipes/${encodeURIComponent(code)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })).json(),
+      shopping: {
+        lists: () => [{ id: "butikk", name: "I butikk" }, { id: "oda", name: "Oda" }],
+        onList: (l) => new Set(state.items.filter((i) => i.list === l && !i.done).map((i) => i.text.toLowerCase())),
+        add: (texts, group, l) => addRecipeItems(texts, group, l),
+      },
       toast: (t) => toast(t),
     });
   });

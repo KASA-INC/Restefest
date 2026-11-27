@@ -285,6 +285,12 @@ main { padding: 0 var(--sp-4); }
 .item-link { flex: none; color: var(--accent); padding: var(--sp-2) var(--sp-1); display: grid; place-items: center; }
 .item-link .i { width: 18px; height: 18px; }
 .host { color: var(--muted); font-size: var(--fs-sm); }
+/* Ingredienser fra en oppskrift: gruppert under retten */
+.items li.grp-head { gap: var(--sp-2); padding: var(--sp-4) var(--sp-3) var(--sp-1); background: color-mix(in srgb, var(--accent-soft) 45%, transparent); border-bottom: 1px solid var(--line); }
+.grp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 600; color: var(--accent); text-decoration: none; }
+.grp-n { flex: none; color: var(--muted); font-size: var(--fs-xs); }
+.grp-del { flex: none; background: none; border: 0; color: var(--muted); font-size: var(--fs-sm); font-weight: 500; padding: var(--sp-1) 0 var(--sp-1) var(--sp-2); cursor: pointer; }
+.items li.in-grp .check { padding-left: calc(var(--sp-3) + 10px); }
 
 .empty { text-align: center; color: var(--muted); margin: var(--sp-6) 0; }
 .done-head { display: flex; align-items: baseline; justify-content: space-between; margin: var(--sp-5) 2px 6px; }

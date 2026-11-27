@@ -7,6 +7,7 @@
 //   valg.menuWeek()                          → { key, label, days: [{ day, label, dish }] } – uken man kan legge i
 //   valg.addToMenu(week, day, title, url)    → legger oppskriften i ukemenyen (bare i Uka)
 //   valg.importLink(url)                     → leser inn en oppskrift fra en lenke → { ok, recipe, error }
+//   valg.shopping                            → { lists(), onList(liste) → Set, add(tekster, { title, url }, liste) } (bare i Uka)
 //   valg.toast(tekst)                        → kort beskjed
 import { matches, normQuery, isBasic, DEFAULT_BASICS } from "./ingredienser.js";
 import { TYPES, MAINS, HAS_MAIN, classify } from "./kategorier.js";
@@ -244,6 +245,77 @@ export function mountRestefest(root, opts = {}) {
     return sel;
   }
 
+  // «+ Handleliste»: velg hvilke ingredienser som skal på listen. Basisvarer, rester du har og det som
+  // allerede står på listen er krysset bort på forhånd.
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  function shopDialog(r) {
+    const [title, url] = r;
+    const sh = opts.shopping;
+    const lists = sh.lists();
+    let l = store.get("shopList", lists[0].id);
+    if (!lists.some((x) => x.id === l)) l = lists[0].id;
+    const dlg = document.createElement("dialog");
+    dlg.className = "rf-dlg";
+    dlg.innerHTML = `<form method="dialog">
+      <h2>Legg på handlelisten</h2>
+      <p class="rf-muted rf-small rf-dlg-sub"></p>
+      <ul class="rf-ings"></ul>
+      <div class="rf-seg rf-dlg-lists" role="group" aria-label="Hvilken liste"></div>
+      <div class="rf-dlg-btns"><button type="button" class="rf-cancel">Avbryt</button><button class="rf-ok"></button></div>
+    </form>`;
+    dlg.querySelector(".rf-dlg-sub").textContent = title;
+    const ul = dlg.querySelector(".rf-ings");
+    const okBtn = dlg.querySelector(".rf-ok");
+    const count = () => {
+      const n = ul.querySelectorAll("input:checked:not(:disabled)").length;
+      okBtn.textContent = n ? `Legg til ${n} ${n === 1 ? "vare" : "varer"}` : "Ingen valgt";
+      okBtn.disabled = !n;
+    };
+    const fill = () => {
+      const on = sh.onList(l);
+      ul.replaceChildren(...[...new Set(r[6])].map((k) => {
+        const text = cap(k);
+        const li = document.createElement("li");
+        const lab = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.value = text;
+        let why = "";
+        if (on.has(text.toLowerCase())) { why = "står på listen"; cb.disabled = true; }
+        else if (have.some((q) => matches(q, k))) why = "har rest";
+        else if (isBasic(k, basics)) why = "basisvare";
+        cb.checked = !why;
+        cb.onchange = count;
+        const span = document.createElement("span"); span.textContent = text;
+        lab.append(cb, span);
+        if (why) lab.append(Object.assign(document.createElement("small"), { textContent: why }));
+        li.append(lab);
+        return li;
+      }));
+      count();
+    };
+    const seg = dlg.querySelector(".rf-dlg-lists");
+    seg.hidden = lists.length < 2;
+    for (const x of lists) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = x.name; b.dataset.l = x.id;
+      b.onclick = () => { l = x.id; store.set("shopList", l); seg.querySelectorAll("button").forEach((y) => y.classList.toggle("on", y.dataset.l === l)); fill(); };
+      b.classList.toggle("on", x.id === l);
+      seg.append(b);
+    }
+    fill();
+    dlg.querySelector(".rf-cancel").onclick = () => dlg.close();
+    dlg.querySelector("form").onsubmit = (e) => {
+      e.preventDefault();
+      const texts = [...ul.querySelectorAll("input:checked:not(:disabled)")].map((c) => c.value);
+      dlg.close();
+      if (texts.length) sh.add(texts, { title, url }, l);
+    };
+    dlg.addEventListener("close", () => dlg.remove());
+    dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+    root.append(dlg);
+    dlg.showModal();
+  }
+
   function card({ r, used, need }) {
     const [title, url, src, img, min] = r;
     const li = document.createElement("li");
@@ -276,7 +348,14 @@ export function mountRestefest(root, opts = {}) {
     a.append(body);
     li.append(a);
     const pick = menuPicker(title, url);
-    if (pick) li.append(pick);
+    const shop = opts.shopping && (r[6] || []).length ? Object.assign(document.createElement("button"), { type: "button", className: "rf-shop", textContent: "+ Handleliste" }) : null;
+    if (shop) { shop.setAttribute("aria-label", `Legg ingrediensene til «${title}» på handlelisten`); shop.onclick = () => shopDialog(r); }
+    if (pick || shop) {
+      const row = document.createElement("div");
+      row.className = "rf-actions";
+      row.append(...[pick, shop].filter(Boolean));
+      li.append(row);
+    }
     return li;
   }
 
