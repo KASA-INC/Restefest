@@ -530,3 +530,4 @@ dialog::backdrop { background: color-mix(in srgb, var(--text) 45%, transparent);
 .list-tools { flex-wrap: wrap; row-gap: 0; }
 .pills .count { margin-left: 4px; }
 
+.rest-lead { margin: -2px 2px 12px; }

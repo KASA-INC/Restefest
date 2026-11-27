@@ -124,6 +124,7 @@ function connect() {
       fetchWeather();
       renderMe();
       askProfileOnce();
+      if (view === "rest") rf?.render();
       if ($("#settings").open) { renderFeeds(); renderPlace(); }
       if ($("#profiles").open && !$("#profView").hidden) renderProfiles();
     }
@@ -171,7 +172,9 @@ function showView(v) {
   $("#view-list").hidden = v !== "list";
   $("#view-menu").hidden = v !== "menu";
   $("#view-cal").hidden = v !== "cal";
-  $("#title").textContent = { list: "Lister", menu: "Ukemeny", cal: "Kalender" }[v] || "";
+  $("#view-rest").hidden = v !== "rest";
+  $("#title").textContent = { list: "Lister", rest: "Restefest", menu: "Ukemeny", cal: "Kalender" }[v] || "";
+  if (v === "rest") mountRest();
   $("#title").classList.toggle("clock", v === "home");
   $("#title").style.fontSize = "";
   if (v === "home") tickClock(true);
@@ -1620,7 +1623,7 @@ for (const [id, key, kind] of [["pRemind", "remind", "b"], ["pRemindMin", "remin
 // Trykk på et varsel mens appen er åpen: gå til riktig fane.
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (e) => {
-    if (e.data?.t === "vis" && ["home", "list", "menu", "cal"].includes(e.data.vis) && code) showView(e.data.vis);
+    if (e.data?.t === "vis" && ["home", "list", "rest", "menu", "cal"].includes(e.data.vis) && code) showView(e.data.vis);
   });
 }
 // Hold serveren oppdatert (nytt abonnement fra nettleseren, ny familie o.l.) hver gang appen åpnes.
@@ -1899,11 +1902,47 @@ function askProfileOnce() {
 
 try { localStorage.removeItem("theme"); } catch {} // fargevalget er fjernet
 
+
+// ---------- Restefest (fane) ----------
+// Lastes først når fanen åpnes (oppskriftsbasen er et par MB).
+let rf = null;
+function mountRest() {
+  if (rf) return rf.render();
+  rf = { render() {} };
+  import("./restefest/restefest.js").then(({ mountRestefest }) => {
+    rf = mountRestefest($("#rfRoot"), {
+      familyRecipes: () => state.recipes || [],
+      // Neste uke i ukemenyen: dagene med det som står der fra før
+      menuWeek: () => {
+        const monday = mondayOf(1);
+        const { w, key } = isoWeek(monday);
+        const week = state.menu[key] || {};
+        return {
+          key,
+          label: `Neste uke (uke ${w})`,
+          days: DAYS.map((name, i) => {
+            const d = new Date(monday); d.setDate(monday.getDate() + i);
+            return { day: i, label: `${name} ${fmt(d)}`, dish: week[i]?.dish || "" };
+          }),
+        };
+      },
+      addToMenu: (week, day, title, url) => {
+        const wk = (state.menu[week] ||= {});
+        wk[day] = { dish: title, link: url };
+        send({ t: "menu", week, day, dish: title, link: url });
+        render();
+      },
+      importLink: async (url) => (await fetch(`/api/recipes/${encodeURIComponent(code)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) })).json(),
+      toast: (t) => toast(t),
+    });
+  });
+}
+
 // ---------- Oppstart ----------
 const params = new URLSearchParams(location.search);
 const fromLink = params.get("kode");
 // Åpnet fra et varsel: /?vis=menu osv.
-if (["home", "list", "menu", "cal"].includes(params.get("vis"))) {
+if (["home", "list", "rest", "menu", "cal"].includes(params.get("vis"))) {
   view = params.get("vis");
   if (!fromLink) history.replaceState(null, "", "/");
 }

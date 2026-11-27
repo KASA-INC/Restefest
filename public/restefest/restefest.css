@@ -1,12 +1,9 @@
-/* Restefest – samme Pion-farger og Jost som Uka */
+/* Den frittstående siden /restefest/ – samme Pion-farger og Jost som Uka. Selve Restefest står i komponent.css. */
 @font-face { font-family: "Jost"; src: url(/fonts/jost-latin-wght-normal.woff2) format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
-@font-face { font-family: "Jost"; src: url(/fonts/jost-latin-wght-italic.woff2) format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
-
 :root {
   --bg: #ece4e6; --surface: #faf6f7; --text: #261922; --muted: #6c5762; --line: #e0d3d9;
-  --accent: #76526a; --accent-ink: #faf6f7; --accent-soft: #e6d6df; --copper: #bf9e7f;
+  --accent: #76526a; --accent-ink: #faf6f7; --accent-soft: #e6d6df;
   --shadow: 0 1px 2px rgb(66 27 46 / 0.06), 0 6px 18px rgb(66 27 46 / 0.08);
-  --r-sm: 10px; --r-md: 12px; --r-lg: 16px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -20,80 +17,9 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--text); font: 16px/1.4 "Jost", "Futura", "Avenir Next", sans-serif; -webkit-tap-highlight-color: transparent; }
-button, input { font: inherit; color: inherit; }
-button { cursor: pointer; }
 a { color: var(--accent); }
-.muted { color: var(--muted); }
-.small { font-size: 14px; }
 [hidden] { display: none !important; }
-
 .wrap { max-width: 680px; margin: 0 auto; padding: calc(24px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom)); }
 .head h1 { margin: 0; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; color: var(--accent); }
 .lead { margin: 6px 0 20px; color: var(--muted); }
-
-.card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 14px; display: grid; gap: 12px; }
-.add { display: flex; gap: 8px; }
-.add input { flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); outline: none; }
-.add input:focus { border-color: var(--accent); background: var(--surface); }
-/* Tagg-felt: restene står som merker inne i feltet, skrivefeltet fyller resten av linjen */
-.tagbox { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); cursor: text; }
-.tagbox:focus-within { border-color: var(--accent); background: var(--surface); }
-.tagbox .have { display: contents; }
-.tagbox input { flex: 1 1 120px; min-height: 32px; padding: 2px 6px; border: 0; background: none; }
-.tagbox input:focus { background: none; }
-.tagbox .have button { padding: 5px 10px; }
-.add .primary { align-self: flex-start; }
-.primary { min-width: 44px; min-height: 44px; border: 0; border-radius: var(--r-md); background: var(--accent); color: var(--accent-ink); font-size: 24px; font-weight: 500; }
-
-.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.chips:empty { display: none; }
-.chips button { border: 0; border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 500; }
-.have button { background: var(--accent); color: var(--accent-ink); display: inline-flex; align-items: center; gap: 6px; }
-.have button::after { content: "×"; font-size: 16px; opacity: .75; }
-.suggest button { background: var(--accent-soft); color: var(--text); }
-.ex { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 2px 10px; margin: 4px 2px 0 0; font-size: 14px; }
-
-.opts { display: grid; gap: 10px; padding-top: 4px; border-top: 1px solid var(--line); padding-top: 12px; }
-.check { display: flex; align-items: center; gap: 10px; font-size: 15px; }
-.check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
-.miss { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
-.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 210px; gap: 2px; background: color-mix(in srgb, var(--line) 75%, var(--bg)); padding: 3px; border-radius: var(--r-md); }
-.seg button { border: 0; background: none; border-radius: var(--r-sm); min-width: 36px; padding: 5px 9px; font-size: 14px; font-weight: 600; color: var(--muted); }
-.seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-.seg button:disabled { opacity: .35; cursor: default; }
-
-.bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 18px 2px 8px; }
-.status { margin: 0; font-size: 14px; }
-.ext { font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; }
-.mine { margin-top: 24px; }
-.mine h2 { margin: 0; font-size: 18px; font-weight: 600; }
-.mine p { margin: 0; }
-.rec .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 600; vertical-align: 1px; }
-.results { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.rec { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: start; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 10px; color: inherit; text-decoration: none; }
-.rec img, .rec .noimg { width: 84px; height: 84px; border-radius: var(--r-md); object-fit: cover; background: var(--accent-soft); display: block; }
-.rec h2 { margin: 0 0 2px; font-size: 16px; font-weight: 600; line-height: 1.25; }
-.rec .meta { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-.rec .use, .rec .need { font-size: 14px; line-height: 1.35; }
-.rec .use b { color: var(--accent); font-weight: 600; }
-.rec .need { color: var(--muted); }
-.rec .need b { font-weight: 500; }
-.rec .all { color: var(--accent); font-weight: 600; font-size: 14px; }
-.more { display: block; margin: 14px auto 0; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 18px; font-weight: 500; }
-.foot { margin-top: 32px; text-align: center; }
-.foot p { margin: 4px 0; }
-
-/* Basisvarer */
-.basics { border-top: 1px solid var(--line); padding-top: 10px; }
-.basics summary { cursor: pointer; font-weight: 600; font-size: 15px; list-style: none; display: flex; align-items: center; gap: 6px; }
-.basics summary::-webkit-details-marker { display: none; }
-.basics summary::before { content: "›"; display: inline-block; transition: transform .15s; color: var(--accent); font-size: 20px; line-height: 1; }
-.basics[open] summary::before { transform: rotate(90deg); }
-.basics summary .muted { font-weight: 400; }
-.basics[open] { display: grid; gap: 10px; }
-.basics p { margin: 0; }
-.basic-chips button { background: var(--bg); border: 1px solid var(--line); color: var(--text); display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; }
-.basic-chips button::after { content: "×"; color: var(--muted); }
-.small-add input { min-height: 38px; }
-.small-add .primary { min-width: 38px; min-height: 38px; font-size: 20px; }
-.linkish { justify-self: start; border: 0; background: none; padding: 0; color: var(--accent); font-size: 14px; font-weight: 500; }
+.foot { margin-top: 12px; text-align: center; color: var(--muted); font-size: 14px; }

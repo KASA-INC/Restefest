@@ -1,241 +1,303 @@
-// Restefest: finn oppskrifter som bruker restene dine. Søket skjer her i nettleseren mot oppskriftsbasen
-// (oppskrifter.json), så det er raskt og gratis, og ingen data sendes noe sted.
+// Restefest: finn oppskrifter som bruker restene dine. Søket skjer i nettleseren mot oppskriftsbasen
+// (oppskrifter.json) og familiens egne oppskrifter, så det er raskt og gratis.
+//
+// Brukes to steder: som fane i Uka og som egen side (/restefest/). Begge kaller mountRestefest(element, valg).
+//   valg.familyRecipes()                     → familiens oppskrifter [{ url, title, image, time, keys, host }]
+//   valg.menuWeek()                          → { key, label, days: [{ day, label, dish }] } – uken man kan legge i
+//   valg.addToMenu(week, day, title, url)    → legger oppskriften i ukemenyen (bare i Uka)
+//   valg.importLink(url)                     → leser inn en oppskrift fra en lenke → { ok, recipe, error }
+//   valg.toast(tekst)                        → kort beskjed
 import { matches, normQuery, isBasic, DEFAULT_BASICS } from "./ingredienser.js";
 
-const $ = (s) => document.querySelector(s);
+const PAGE = 40;
 const store = {
   get: (k, d) => { try { return JSON.parse(localStorage.getItem("restefest:" + k)) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem("restefest:" + k, JSON.stringify(v)); } catch {} },
 };
-const PAGE = 40;
-
-// Familiekoden fra Uka (samme nettsted), så familiens egne oppskrifter kommer med i søket.
-const code = (() => { try { return localStorage.getItem("code"); } catch { return null; } })();
-let mine = []; // [tittel, lenke, -1, bilde, minutter, [], ingredienser, nettsted]
-let db = null; // { sources, recipes: [[tittel, lenke, kilde, bilde, minutter, kategorier, ingredienser]] }
-let vocab = []; // ingredienser etter hvor ofte de brukes, til forslag
-let have = store.get("have", []);
-let useBasics = store.get("basics", true);
-let basics = store.get("basicsList", DEFAULT_BASICS);
-let minUse = store.get("use", 1); // hvor mange av restene en oppskrift minst må bruke (99 = alle)
-let shown = PAGE;
-
-async function load() {
-  $("#status").textContent = "Henter oppskrifter …";
-  try {
-    const res = await fetch("oppskrifter.json");
-    db = await res.json();
-  } catch {
-    $("#status").textContent = "Kunne ikke hente oppskriftene. Prøv igjen senere.";
-    return;
-  }
-  const count = new Map();
-  for (const r of db.recipes) for (const k of r[6]) count.set(k, (count.get(k) || 0) + 1);
-  vocab = [...count].filter(([k, n]) => n >= 3 && !isBasic(k, ["salt", "pepper", "vann", "sukker", "hvetemel", "buljong"])).sort((a, b) => b[1] - a[1]).map(([k]) => k);
-  const s = db.sources;
-  $("#sources").textContent = s.length > 1 ? `${s.slice(0, -1).join(", ")} og ${s.at(-1)}` : s[0];
-  $("#built").textContent = `${db.recipes.length.toLocaleString("nb-NO")} oppskrifter, oppdatert ${new Date(db.built).toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" })}`;
-  render();
-}
-
-async function loadMine() {
-  if (!code) { $("#noFamily").hidden = false; return; }
-  $("#mineBox").hidden = false;
-  try {
-    const res = await fetch(`/api/recipes/${encodeURIComponent(code)}`);
-    const { recipes } = await res.json();
-    mine = recipes.map((r) => [r.title, r.url, -1, r.image, r.time, [], r.keys, r.host]);
-    $("#mineStatus").textContent = mine.length ? `${mine.length} ${mine.length === 1 ? "oppskrift" : "oppskrifter"} fra familien` : "Ingen ennå.";
-    render();
-  } catch {}
-}
-
-// Hvor godt passer en oppskrift? Ingredienser du har, og de som mangler (basisvarer regnes som «har» hvis valgt).
-function score(r) {
-  const used = [], need = [];
-  for (const k of r[6]) {
-    const hit = have.find((q) => matches(q, k));
-    if (hit) used.push(k);
-    else if (!(useBasics && isBasic(k, basics))) need.push(k);
-  }
-  return { used, need };
-}
-
-function search() {
-  if (!have.length) return [];
-  const out = [];
-  const seen = new Set(mine.map((r) => r[1]));
-  for (const r of [...mine, ...(db ? db.recipes.filter((x) => !seen.has(x[1])) : [])]) {
-    const s = score(r);
-    if (!s.used.length) continue;
-    // Hvor mange av restene dine oppskriften bruker (ikke hvor mange linjer som treffer)
-    const restsUsed = have.filter((q) => r[6].some((k) => matches(q, k))).length;
-    if (restsUsed < Math.min(minUse, have.length)) continue;
-    out.push({ r, ...s, restsUsed });
-  }
-  // Først flest av restene dine, så færrest ingredienser som mangler, så familiens egne, så korteste tid.
-  out.sort((a, b) => b.restsUsed - a.restsUsed || a.need.length - b.need.length || (b.r[2] < 0) - (a.r[2] < 0) || (a.r[4] || 999) - (b.r[4] || 999));
-  return out;
-}
-
 const joinList = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} og ${xs.at(-1)}`);
 
-function card({ r, used, need }) {
-  const [title, url, src, img, min] = r;
-  const li = document.createElement("li");
-  const a = document.createElement("a");
-  a.className = "rec";
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener";
-  if (img) {
-    const im = document.createElement("img");
-    im.src = img; im.alt = ""; im.loading = "lazy"; im.referrerPolicy = "no-referrer";
-    im.onerror = () => im.replaceWith(Object.assign(document.createElement("div"), { className: "noimg" }));
-    a.append(im);
-  } else a.append(Object.assign(document.createElement("div"), { className: "noimg" }));
-  const body = document.createElement("div");
-  const h = document.createElement("h2"); h.textContent = title;
-  const meta = document.createElement("div"); meta.className = "meta";
-  meta.textContent = [src < 0 ? r[7] : db.sources[src], min ? `${min} min` : ""].filter(Boolean).join(" · ");
-  if (src < 0) meta.insertAdjacentHTML("beforeend", '<span class="tag">Deres</span>');
-  const use = document.createElement("div"); use.className = "use";
-  use.innerHTML = "Bruker <b></b>"; use.querySelector("b").textContent = joinList([...new Set(used)]);
-  body.append(h, meta, use);
-  if (need.length) {
-    const n = document.createElement("div"); n.className = "need";
-    n.innerHTML = "Mangler <b></b>"; n.querySelector("b").textContent = joinList(need);
+const TEMPLATE = `
+  <section class="rf-card">
+    <form class="rf-add" data-rf="addForm" autocomplete="off">
+      <div class="rf-tagbox" data-rf="tagbox">
+        <ul class="rf-chips rf-have" data-rf="have" aria-label="Restene dine"></ul>
+        <input data-rf="addInput" placeholder="Hva har du rester av? F.eks. kylling, ris …" enterkeyhint="done" aria-label="Legg til en rest – trykk Enter eller komma">
+      </div>
+      <button class="rf-plus" aria-label="Legg til">+</button>
+    </form>
+    <ul class="rf-chips rf-suggest" data-rf="suggest" aria-label="Forslag"></ul>
+    <p class="rf-muted rf-small" data-rf="haveEmpty">Prøv for eksempel:
+      <button type="button" class="rf-ex">kylling</button> <button type="button" class="rf-ex">ris</button>
+      <button type="button" class="rf-ex">egg</button> <button type="button" class="rf-ex">potet</button>
+      <button type="button" class="rf-ex">pasta</button> <button type="button" class="rf-ex">brokkoli</button></p>
+    <div class="rf-opts">
+      <label class="rf-check"><input type="checkbox" data-rf="basics" checked> <span>Regn med basisvarene mine</span></label>
+      <div class="rf-row">
+        <span>Må bruke minst</span>
+        <div class="rf-seg" role="group" aria-label="Hvor mange av restene oppskriften minst må bruke">
+          <button type="button" data-use="1">1</button><button type="button" data-use="2">2</button><button type="button" data-use="3">3</button><button type="button" data-use="99">Alle</button>
+        </div>
+      </div>
+      <details class="rf-basics" data-rf="basicsBox">
+        <summary>Basisvarer <span data-rf="basicsCount" class="rf-muted"></span></summary>
+        <p class="rf-muted rf-small">Ting du som regel har i skapet. Oppskrifter regner dem som noe du har, så de ikke står under «Mangler».</p>
+        <ul class="rf-chips rf-basic-chips" data-rf="basicsList" aria-label="Basisvarene dine"></ul>
+        <form class="rf-add rf-small-add" data-rf="basicsForm" autocomplete="off">
+          <input data-rf="basicsInput" placeholder="Legg til basisvare …" enterkeyhint="done" aria-label="Legg til basisvare">
+          <button class="rf-plus" aria-label="Legg til basisvare">+</button>
+        </form>
+        <button type="button" class="rf-link" data-rf="basicsReset">Tilbakestill til standardlisten</button>
+      </details>
+    </div>
+  </section>
+
+  <div class="rf-bar">
+    <p class="rf-status rf-muted" data-rf="status"></p>
+    <a class="rf-ext" data-rf="matprat" target="_blank" rel="noopener" hidden>Søk på Matprat →</a>
+  </div>
+  <ul class="rf-results" data-rf="results"></ul>
+  <button type="button" class="rf-more" data-rf="more" hidden>Vis flere</button>
+
+  <section class="rf-card rf-mine" data-rf="mineBox" hidden>
+    <h2>Deres oppskrifter</h2>
+    <p class="rf-muted rf-small">Oppskrifter dere har lenket til i ukemenyen kommer med i søket. Du kan også lime inn en lenke her.</p>
+    <form class="rf-add" data-rf="linkForm" autocomplete="off">
+      <input data-rf="linkInput" type="url" inputmode="url" placeholder="https://… lenke til en oppskrift" aria-label="Lenke til en oppskrift">
+      <button class="rf-plus" aria-label="Legg til oppskrift">+</button>
+    </form>
+    <p class="rf-muted rf-small" data-rf="mineStatus"></p>
+  </section>
+
+  <p class="rf-foot rf-muted rf-small">Oppskriftene er fra <span data-rf="sources">REMA 1000, Coop og KIWI</span>. Restefest viser bare tittel og ingredienser – trykk på en oppskrift for mengder og fremgangsmåte hos originalen. <span data-rf="built"></span></p>
+`;
+
+export function mountRestefest(root, opts = {}) {
+  root.classList.add("rf");
+  root.innerHTML = TEMPLATE;
+  const $ = (name) => root.querySelector(`[data-rf="${name}"]`);
+  const toast = opts.toast || (() => {});
+
+  let db = null; // { sources, recipes: [[tittel, lenke, kilde, bilde, minutter, kategorier, ingredienser]] }
+  let vocab = [];
+  let have = store.get("have", []);
+  let useBasics = store.get("basics", true);
+  let basics = store.get("basicsList", DEFAULT_BASICS);
+  let minUse = store.get("use", 1);
+  let shown = PAGE;
+
+  // Familiens egne oppskrifter i samme form som basen: [tittel, lenke, -1, bilde, minutter, [], ingredienser, nettsted]
+  const mine = () => (opts.familyRecipes?.() || []).map((r) => [r.title, r.url, -1, r.image, r.time, [], r.keys, r.host]);
+
+  async function load() {
+    $("status").textContent = "Henter oppskrifter …";
+    try {
+      db = await (await fetch(opts.dbUrl || "/restefest/oppskrifter.json")).json();
+    } catch {
+      $("status").textContent = "Kunne ikke hente oppskriftene. Prøv igjen senere.";
+      return;
+    }
+    const count = new Map();
+    for (const r of db.recipes) for (const k of r[6]) count.set(k, (count.get(k) || 0) + 1);
+    vocab = [...count].filter(([k, n]) => n >= 3 && !isBasic(k, ["salt", "pepper", "vann", "sukker", "hvetemel", "buljong"])).sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    const s = db.sources;
+    $("sources").textContent = s.length > 1 ? `${s.slice(0, -1).join(", ")} og ${s.at(-1)}` : s[0];
+    $("built").textContent = `${db.recipes.length.toLocaleString("nb-NO")} oppskrifter, oppdatert ${new Date(db.built).toLocaleDateString("nb-NO", { day: "numeric", month: "long", year: "numeric" })}.`;
+    $("status").textContent = "";
+    render();
+  }
+
+  function score(r) {
+    const used = [], need = [];
+    for (const k of r[6]) {
+      if (have.some((q) => matches(q, k))) used.push(k);
+      else if (!(useBasics && isBasic(k, basics))) need.push(k);
+    }
+    return { used, need };
+  }
+
+  function search() {
+    if (!have.length) return [];
+    const out = [];
+    const own = mine();
+    const seen = new Set(own.map((r) => r[1]));
+    for (const r of [...own, ...(db ? db.recipes.filter((x) => !seen.has(x[1])) : [])]) {
+      const s = score(r);
+      if (!s.used.length) continue;
+      const restsUsed = have.filter((q) => r[6].some((k) => matches(q, k))).length;
+      if (restsUsed < Math.min(minUse, have.length)) continue;
+      out.push({ r, ...s, restsUsed });
+    }
+    // Først flest av restene dine, så færrest ingredienser som mangler, så familiens egne, så korteste tid.
+    out.sort((a, b) => b.restsUsed - a.restsUsed || a.need.length - b.need.length || (b.r[2] < 0) - (a.r[2] < 0) || (a.r[4] || 999) - (b.r[4] || 999));
+    return out;
+  }
+
+  // Nedtrekksliste: legg oppskriften i ukemenyen (dagene i uken menuWeek() gir, normalt neste uke).
+  function menuPicker(title, url) {
+    const wk = opts.addToMenu && opts.menuWeek?.();
+    if (!wk) return null;
+    const sel = document.createElement("select");
+    sel.className = "rf-menu";
+    sel.setAttribute("aria-label", `Legg «${title}» i ukemenyen`);
+    sel.append(new Option("+ Ukemeny", ""));
+    const grp = document.createElement("optgroup");
+    grp.label = wk.label;
+    for (const d of wk.days) grp.append(new Option(d.dish ? `${d.label} (nå: ${d.dish})` : d.label, String(d.day)));
+    sel.append(grp);
+    sel.onchange = () => {
+      const v = sel.value;
+      sel.value = "";
+      if (v === "") return;
+      const day = Number(v);
+      const d = wk.days.find((x) => x.day === day);
+      if (d?.dish && !confirm(`${d.label} står det «${d.dish}». Bytte til «${title}»?`)) return;
+      opts.addToMenu(wk.key, day, title, url);
+      toast(`«${title}» lagt i ukemenyen ${d.label.toLowerCase()}`);
+      render();
+    };
+    return sel;
+  }
+
+  function card({ r, used, need }) {
+    const [title, url, src, img, min] = r;
+    const li = document.createElement("li");
+    li.className = "rf-rec";
+    const a = document.createElement("a");
+    a.className = "rf-rec-link";
+    a.href = url; a.target = "_blank"; a.rel = "noopener";
+    if (img) {
+      const im = document.createElement("img");
+      im.src = img; im.alt = ""; im.loading = "lazy"; im.referrerPolicy = "no-referrer";
+      im.onerror = () => im.replaceWith(Object.assign(document.createElement("div"), { className: "rf-noimg" }));
+      a.append(im);
+    } else a.append(Object.assign(document.createElement("div"), { className: "rf-noimg" }));
+    const body = document.createElement("div");
+    const h = document.createElement("h3"); h.textContent = title;
+    const meta = document.createElement("div"); meta.className = "rf-meta";
+    meta.textContent = [src < 0 ? r[7] : db?.sources[src], min ? `${min} min` : ""].filter(Boolean).join(" · ");
+    if (src < 0) meta.insertAdjacentHTML("beforeend", '<span class="rf-tag">Deres</span>');
+    const use = document.createElement("div"); use.className = "rf-use";
+    use.innerHTML = "Bruker <b></b>"; use.querySelector("b").textContent = joinList([...new Set(used)]);
+    body.append(h, meta, use);
+    const n = document.createElement("div");
+    if (need.length) { n.className = "rf-need"; n.innerHTML = "Mangler <b></b>"; n.querySelector("b").textContent = joinList(need); }
+    else { n.className = "rf-all"; n.textContent = "Du har alt"; }
     body.append(n);
-  } else {
-    const n = document.createElement("div"); n.className = "all"; n.textContent = "Du har alt";
-    body.append(n);
+    a.append(body);
+    li.append(a);
+    const pick = menuPicker(title, url);
+    if (pick) li.append(pick);
+    return li;
   }
-  a.append(body);
-  li.append(a);
-  return li;
-}
 
-function render() {
-  $("#have").replaceChildren(...have.map((q) => {
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = q; b.setAttribute("aria-label", `Fjern ${q}`);
-    b.onclick = () => { have = have.filter((x) => x !== q); save(); };
-    li.append(b);
-    return li;
-  }));
-  $("#haveEmpty").hidden = have.length > 0;
-  $("#basics").checked = useBasics;
-  $("#basicsCount").textContent = `(${basics.length})`;
-  $("#basicsList").replaceChildren(...basics.map((b) => {
-    const li = document.createElement("li");
-    const btn = document.createElement("button");
-    btn.type = "button"; btn.textContent = b; btn.setAttribute("aria-label", `Fjern ${b} fra basisvarene`);
-    btn.onclick = () => saveBasics(basics.filter((x) => x !== b));
-    li.append(btn);
-    return li;
-  }));
-  document.querySelectorAll("[data-use]").forEach((b) => {
-    const n = Number(b.dataset.use);
-    b.classList.toggle("on", n === minUse);
-    b.disabled = n !== 99 && n > Math.max(have.length, 1); // «minst 3» gir ingen mening med to rester
-  });
-  const m = $("#matprat");
-  m.hidden = !have.length;
-  m.href = `https://www.matprat.no/sok?category=recipes&page=1&searchFor=${encodeURIComponent(have.join(" "))}&sort=relevant`;
-  if (!db && !mine.length) return;
-  const hits = search();
-  $("#status").textContent = !have.length ? "" : hits.length
-    ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
-    : minUse > 1 ? "Ingen oppskrifter bruker så mange av restene. Prøv et lavere tall under «Må bruke minst»." : "Ingen oppskrifter bruker dette.";
-  $("#results").replaceChildren(...hits.slice(0, shown).map(card));
-  $("#more").hidden = hits.length <= shown;
-}
+  function render() {
+    $("have").replaceChildren(...have.map((q) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = q; b.setAttribute("aria-label", `Fjern ${q}`);
+      b.onclick = () => { have = have.filter((x) => x !== q); save(); };
+      li.append(b);
+      return li;
+    }));
+    $("haveEmpty").hidden = have.length > 0;
+    $("basics").checked = useBasics;
+    $("basicsCount").textContent = `(${basics.length})`;
+    $("basicsList").replaceChildren(...basics.map((b) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.textContent = b; btn.setAttribute("aria-label", `Fjern ${b} fra basisvarene`);
+      btn.onclick = () => saveBasics(basics.filter((x) => x !== b));
+      li.append(btn);
+      return li;
+    }));
+    root.querySelectorAll("[data-use]").forEach((b) => {
+      const n = Number(b.dataset.use);
+      b.classList.toggle("on", n === minUse);
+      b.disabled = n !== 99 && n > Math.max(have.length, 1);
+    });
+    const m = $("matprat");
+    m.hidden = !have.length;
+    m.href = `https://www.matprat.no/sok?category=recipes&page=1&searchFor=${encodeURIComponent(have.join(" "))}&sort=relevant`;
+    const own = mine();
+    $("mineBox").hidden = !opts.importLink;
+    if (!$("mineStatus").dataset.msg) $("mineStatus").textContent = own.length ? `${own.length} ${own.length === 1 ? "oppskrift" : "oppskrifter"} fra familien` : "Ingen ennå.";
+    if (!db && !own.length) return;
+    const hits = search();
+    if (db || have.length) {
+      $("status").textContent = !have.length ? "" : hits.length
+        ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
+        : minUse > 1 ? "Ingen oppskrifter bruker så mange av restene. Prøv et lavere tall under «Må bruke minst»." : "Ingen oppskrifter bruker dette.";
+    }
+    $("results").replaceChildren(...hits.slice(0, shown).map(card));
+    $("more").hidden = hits.length <= shown;
+  }
 
-function save() {
-  store.set("have", have);
-  shown = PAGE;
+  function save() { store.set("have", have); shown = PAGE; render(); }
+  function saveBasics(list) { basics = list; store.set("basicsList", basics); shown = PAGE; render(); }
+
+  function add(text) {
+    for (const part of text.split(/[,;\n]+/)) {
+      const q = normQuery(part);
+      if (q && !have.includes(q)) have.push(q);
+    }
+    $("addInput").value = "";
+    $("suggest").replaceChildren();
+    save();
+    $("addInput").focus();
+  }
+
+  $("addForm").onsubmit = (e) => { e.preventDefault(); if ($("addInput").value.trim()) add($("addInput").value); };
+  $("addInput").oninput = () => {
+    const inp = $("addInput");
+    if (/^\s+$/.test(inp.value)) inp.value = ""; // mellomrom etter komma
+    if (/[,;]/.test(inp.value)) { // tagg-metode: komma gjør det foran til et merke
+      const parts = inp.value.split(/[,;]/);
+      const rest = parts.pop();
+      add(parts.join(","));
+      inp.value = rest.trimStart();
+    }
+    const q = normQuery(inp.value);
+    const list = q.length >= 2 ? vocab.filter((k) => k.startsWith(q) && !have.includes(k)).slice(0, 8) : [];
+    $("suggest").replaceChildren(...list.map((k) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = k;
+      b.onclick = () => add(k);
+      li.append(b);
+      return li;
+    }));
+  };
+  $("addInput").onkeydown = (e) => { if (e.key === "Backspace" && !e.target.value && have.length) { have.pop(); save(); } };
+  $("addInput").onpaste = (e) => {
+    const t = e.clipboardData?.getData("text") || "";
+    if (/[,;\n]/.test(t)) { e.preventDefault(); add(t); }
+  };
+  $("tagbox").onclick = (e) => { if (e.target === e.currentTarget) $("addInput").focus(); };
+  root.querySelectorAll(".rf-ex").forEach((b) => (b.onclick = () => add(b.textContent)));
+  $("basics").onchange = (e) => { useBasics = e.target.checked; store.set("basics", useBasics); shown = PAGE; render(); };
+  root.querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { minUse = Number(b.dataset.use); store.set("use", minUse); shown = PAGE; render(); }));
+  $("basicsForm").onsubmit = (e) => {
+    e.preventDefault();
+    const more = $("basicsInput").value.split(/[,;]+/).map((x) => normQuery(x)).filter((x) => x && !basics.includes(x));
+    $("basicsInput").value = "";
+    if (more.length) saveBasics([...basics, ...more]);
+  };
+  $("basicsReset").onclick = () => { if (confirm("Tilbakestille basisvarene til standardlisten?")) saveBasics([...DEFAULT_BASICS]); };
+  $("more").onclick = () => { shown += PAGE; render(); };
+  $("linkForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const url = $("linkInput").value.trim();
+    if (!url || !opts.importLink) return;
+    const st = $("mineStatus");
+    st.dataset.msg = "1";
+    st.textContent = "Leser oppskriften …";
+    const out = await opts.importLink(url).catch(() => ({ ok: false }));
+    st.textContent = out.ok ? `La til «${out.recipe.title}».` : out.error || "Kunne ikke lese oppskriften.";
+    if (out.ok) $("linkInput").value = "";
+    render();
+  };
+
   render();
+  load();
+  return { render };
 }
-
-// Legger til én eller flere rester (skilt med komma, semikolon eller linjeskift).
-function add(text, keepFocus = true) {
-  for (const part of text.split(/[,;\n]+/)) {
-    const q = normQuery(part);
-    if (q && !have.includes(q)) have.push(q);
-  }
-  $("#addInput").value = "";
-  $("#suggest").replaceChildren();
-  save();
-  if (keepFocus) $("#addInput").focus();
-}
-
-$("#addForm").onsubmit = (e) => { e.preventDefault(); if ($("#addInput").value.trim()) add($("#addInput").value); };
-$("#addInput").oninput = () => {
-  // Tagg-metode: komma (eller semikolon) gjør det som står foran til et merke med en gang
-  if (/^\s+$/.test($("#addInput").value)) $("#addInput").value = ""; // mellomrom etter komma
-  const v = $("#addInput").value;
-  if (/[,;]/.test(v)) {
-    const parts = v.split(/[,;]/);
-    const rest = parts.pop();
-    add(parts.join(","));
-    $("#addInput").value = rest.trimStart();
-  }
-  const q = normQuery($("#addInput").value);
-  const list = q.length >= 2 ? vocab.filter((k) => k.startsWith(q) && !have.includes(k)).slice(0, 8) : [];
-  $("#suggest").replaceChildren(...list.map((k) => {
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = k;
-    b.onclick = () => { add(k); $("#addInput").focus(); };
-    li.append(b);
-    return li;
-  }));
-};
-function saveBasics(list) {
-  basics = list;
-  store.set("basicsList", basics);
-  shown = PAGE;
-  render();
-}
-$("#basicsForm").onsubmit = (e) => {
-  e.preventDefault();
-  const add = $("#basicsInput").value.split(/[,;]+/).map((x) => normQuery(x)).filter((x) => x && !basics.includes(x));
-  $("#basicsInput").value = "";
-  if (add.length) saveBasics([...basics, ...add]);
-};
-$("#basicsReset").onclick = () => { if (confirm("Tilbakestille basisvarene til standardlisten?")) saveBasics([...DEFAULT_BASICS]); };
-$("#addInput").onkeydown = (e) => {
-  // Backspace i tomt felt fjerner det siste merket
-  if (e.key === "Backspace" && !e.target.value && have.length) { have.pop(); save(); }
-};
-$("#addInput").onpaste = (e) => {
-  const t = e.clipboardData?.getData("text") || "";
-  if (/[,;\n]/.test(t)) { e.preventDefault(); add(t); }
-};
-$("#tagbox").onclick = (e) => { if (e.target === e.currentTarget) $("#addInput").focus(); };
-document.querySelectorAll(".ex").forEach((b) => (b.onclick = () => add(b.textContent)));
-$("#basics").onchange = (e) => { useBasics = e.target.checked; store.set("basics", useBasics); shown = PAGE; render(); };
-document.querySelectorAll("[data-use]").forEach((b) => (b.onclick = () => { minUse = Number(b.dataset.use); store.set("use", minUse); shown = PAGE; render(); }));
-$("#more").onclick = () => { shown += PAGE; render(); };
-
-$("#linkForm").onsubmit = async (e) => {
-  e.preventDefault();
-  const url = $("#linkInput").value.trim();
-  if (!url) return;
-  $("#mineStatus").textContent = "Leser oppskriften …";
-  try {
-    const res = await fetch(`/api/recipes/${encodeURIComponent(code)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-    const out = await res.json();
-    if (!out.ok) { $("#mineStatus").textContent = out.error || "Kunne ikke lese oppskriften."; return; }
-    $("#linkInput").value = "";
-    await loadMine();
-    $("#mineStatus").textContent = `La til «${out.recipe.title}».`;
-  } catch {
-    $("#mineStatus").textContent = "Kunne ikke lese oppskriften.";
-  }
-};
-
-render();
-load();
-loadMine();

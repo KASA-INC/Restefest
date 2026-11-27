@@ -72,6 +72,15 @@ Hver familie kan legge til profiler (maks 12) under profilknappen øverst til h�
 
 Profilbildene er DiceBears «Lorelei» av Lisa Wischofsky (CC0) på lyse, varme bakgrunner. De hentes via `/api/avatar/lorelei/<frø>.svg`, som mellomlagres. Frøet er tilfeldig, så navn sendes aldri til DiceBear.
 
+## Restefest
+
+Fanen «Restefest» (mellom Lister og Ukemeny, og som egen side på `/restefest/`) finner oppskrifter som bruker restene dine. Restene skrives inn som merker (Enter eller komma). Søket skjer i nettleseren mot en egen oppskriftsbase (`public/restefest/oppskrifter.json`, ca. 5 200 oppskrifter) og mot familiens egne oppskrifter. Treffene sorteres etter hvor mange av restene de bruker, deretter etter hvor få ingredienser som mangler. Basisvarer (forhåndsutfylt, kan endres) regnes som noe man har. Fra hvert treff kan oppskriften legges i neste ukes ukemeny med lenke.
+
+- **Oppskriftsbasen** bygges med `node tools/hent-oppskrifter.mjs <mappe>` og `node tools/bygg-oppskriftsbase.mjs <mappe>`. Den inneholder bare tittel, lenke, bilde, tid, kategori og ingredienser i grunnform. Kilder: REMA 1000, Coop og KIWI. Matprat, TINE og MENY er ikke med fordi vilkårene deres forbyr det; sjekk vilkårene før en ny kilde legges til.
+- **Familiens oppskrifter:** når en oppskriftslenke legges i ukemenyen (eller limes inn i Restefest), leser serveren akkurat den siden og lagrer tittel, bilde og ingredienser i familien (`/api/recipes/<kode>`).
+- **«Søk på Matprat»** åpner Matprats eget søk med restene.
+- `public/restefest/ingredienser.js` gjør ingredienslinjer om til grunnform og avgjør hva som passer sammen (sammensatte ord, samlebegreper som «ost» og «sopp», unntak som løk ≠ hvitløk).
+
 ## Vær
 
 Under Innstillinger → Vær velger familien et sted, med søk i Kartverkets stedsnavn eller «Bruk min posisjon». Værvarselet fra Meteorologisk institutt (api.met.no, samme som Yr) vises på «I dag» (symbol, min./maks. og nedbør), i ukemenyen (symbol og makstemperatur) og i ukevisningen i kalenderen. `src/weather.js` henter varselet via workeren (`/api/weather`) med User-Agent og mellomlagring, slik MET krever, og lager én oversikt per dag med symbolet midt på dagen. Ikonene er Arcticons sine vær-emojier.
