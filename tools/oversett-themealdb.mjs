@@ -9,7 +9,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const RAW = process.argv[2] || "themealdb-raw.json";
 const MAX = Number(process.argv[3] || 1e9);
 const OUT = new URL("../public/restefest/themealdb-no.json", import.meta.url);
-const CONCURRENCY = 4;
+const CONCURRENCY = Number(process.env.SAMTIDIG || 4);
 
 // Nøkkelen: UKA_ANTHROPIC_KEY (anbefalt i skymiljøer, der ANTHROPIC_API_KEY er reservert for Claude Code) eller ANTHROPIC_API_KEY.
 const apiKey = process.env.UKA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
