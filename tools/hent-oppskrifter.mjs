@@ -13,6 +13,7 @@
 //   node tools/hent-oppskrifter.mjs <mellomlager-mappe> [maks per kilde]
 import fs from "node:fs";
 import path from "node:path";
+import { recipeFrom } from "../public/restefest/les-oppskrift.js";
 
 const UA = "Mozilla/5.0 (compatible; Uka-oppskrifter/1.0; +https://uka-app.no/restefest)";
 const CACHE = process.argv[2] || "./.oppskrift-cache";
@@ -37,26 +38,6 @@ async function get(url) {
     } catch {
       await sleep(5000 * (i + 1));
     }
-  }
-  return null;
-}
-
-export function recipeFrom(html, url) {
-  for (const m of html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)) {
-    let d;
-    try { d = JSON.parse(m[1]); } catch { continue; }
-    const items = (Array.isArray(d) ? d : d["@graph"] || [d]).flatMap((x) => (x && x["@graph"] ? x["@graph"] : [x]));
-    const r = items.find((x) => x && [].concat(x["@type"]).some((t) => String(t).includes("Recipe")));
-    if (!r || !Array.isArray(r.recipeIngredient) || !r.recipeIngredient.length) continue;
-    const img = Array.isArray(r.image) ? r.image[0] : r.image;
-    return {
-      url,
-      title: String(r.name || "").replace(/\s+/g, " ").trim(),
-      ingredients: r.recipeIngredient.map((s) => String(s).replace(/\s+/g, " ").trim()).filter(Boolean),
-      image: typeof img === "string" ? img : img?.url || img?.contentUrl || "",
-      time: r.totalTime || r.cookTime || "",
-      category: [].concat(r.recipeCategory || []).map(String),
-    };
   }
   return null;
 }

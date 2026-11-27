@@ -6,17 +6,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { keysFromLine } from "../public/restefest/ingredienser.js";
+import { minutes } from "../public/restefest/les-oppskrift.js";
 
 const CACHE = process.argv[2] || "./.oppskrift-cache";
 const OUT = new URL("../public/restefest/oppskrifter.json", import.meta.url);
 const SOURCES = { rema: "REMA 1000", coop: "Coop", kiwi: "KIWI" };
-
-const minutes = (iso) => {
-  const m = /P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?/.exec(iso || "");
-  if (!m) return 0;
-  const t = (+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0);
-  return t > 0 && t < 2880 ? t : 0;
-};
 
 const recipes = [];
 const seen = new Set();

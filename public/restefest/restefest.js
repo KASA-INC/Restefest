@@ -9,6 +9,9 @@ const store = {
 };
 const PAGE = 40;
 
+// Familiekoden fra Uka (samme nettsted), så familiens egne oppskrifter kommer med i søket.
+const code = (() => { try { return localStorage.getItem("code"); } catch { return null; } })();
+let mine = []; // [tittel, lenke, -1, bilde, minutter, [], ingredienser, nettsted]
 let db = null; // { sources, recipes: [[tittel, lenke, kilde, bilde, minutter, kategorier, ingredienser]] }
 let vocab = []; // ingredienser etter hvor ofte de brukes, til forslag
 let have = store.get("have", []);
@@ -34,6 +37,18 @@ async function load() {
   render();
 }
 
+async function loadMine() {
+  if (!code) { $("#noFamily").hidden = false; return; }
+  $("#mineBox").hidden = false;
+  try {
+    const res = await fetch(`/api/recipes/${encodeURIComponent(code)}`);
+    const { recipes } = await res.json();
+    mine = recipes.map((r) => [r.title, r.url, -1, r.image, r.time, [], r.keys, r.host]);
+    $("#mineStatus").textContent = mine.length ? `${mine.length} ${mine.length === 1 ? "oppskrift" : "oppskrifter"} fra familien` : "Ingen ennå.";
+    render();
+  } catch {}
+}
+
 // Hvor godt passer en oppskrift? Ingredienser du har, og de som mangler (basisvarer regnes som «har» hvis valgt).
 function score(r) {
   const used = [], need = [];
@@ -46,16 +61,19 @@ function score(r) {
 }
 
 function search() {
-  if (!db || !have.length) return [];
+  if (!have.length) return [];
   const out = [];
-  for (const r of db.recipes) {
+  const seen = new Set(mine.map((r) => r[1]));
+  for (const r of [...mine, ...(db ? db.recipes.filter((x) => !seen.has(x[1])) : [])]) {
     const s = score(r);
     if (!s.used.length || s.need.length > maxMiss) continue;
     // Hvor mange av restene dine oppskriften bruker (ikke hvor mange linjer som treffer)
     const restsUsed = have.filter((q) => r[6].some((k) => matches(q, k))).length;
     out.push({ r, ...s, restsUsed });
   }
-  out.sort((a, b) => a.need.length - b.need.length || b.restsUsed - a.restsUsed || (a.r[4] || 999) - (b.r[4] || 999));
+  // Flest av restene dine og færrest som mangler: hver rest som brukes teller tre ganger så mye som en ingrediens som mangler.
+  const value = (x) => x.restsUsed * 3 - x.need.length;
+  out.sort((a, b) => value(b) - value(a) || a.need.length - b.need.length || (b.r[2] < 0) - (a.r[2] < 0) || (a.r[4] || 999) - (b.r[4] || 999));
   return out;
 }
 
@@ -78,7 +96,8 @@ function card({ r, used, need }) {
   const body = document.createElement("div");
   const h = document.createElement("h2"); h.textContent = title;
   const meta = document.createElement("div"); meta.className = "meta";
-  meta.textContent = [db.sources[src], min ? `${min} min` : ""].filter(Boolean).join(" · ");
+  meta.textContent = [src < 0 ? r[7] : db.sources[src], min ? `${min} min` : ""].filter(Boolean).join(" · ");
+  if (src < 0) meta.insertAdjacentHTML("beforeend", '<span class="tag">Deres</span>');
   const use = document.createElement("div"); use.className = "use";
   use.innerHTML = "Bruker <b></b>"; use.querySelector("b").textContent = joinList([...new Set(used)]);
   body.append(h, meta, use);
@@ -107,7 +126,10 @@ function render() {
   $("#haveEmpty").hidden = have.length > 0;
   $("#basics").checked = useBasics;
   document.querySelectorAll("[data-miss]").forEach((b) => b.classList.toggle("on", Number(b.dataset.miss) === maxMiss));
-  if (!db) return;
+  const m = $("#matprat");
+  m.hidden = !have.length;
+  m.href = `https://www.matprat.no/sok?category=recipes&page=1&searchFor=${encodeURIComponent(have.join(" "))}&sort=relevant`;
+  if (!db && !mine.length) return;
   const hits = search();
   $("#status").textContent = !have.length ? "" : hits.length
     ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
@@ -150,5 +172,23 @@ $("#basics").onchange = (e) => { useBasics = e.target.checked; store.set("basics
 document.querySelectorAll("[data-miss]").forEach((b) => (b.onclick = () => { maxMiss = Number(b.dataset.miss); store.set("miss", maxMiss); shown = PAGE; render(); }));
 $("#more").onclick = () => { shown += PAGE; render(); };
 
+$("#linkForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const url = $("#linkInput").value.trim();
+  if (!url) return;
+  $("#mineStatus").textContent = "Leser oppskriften …";
+  try {
+    const res = await fetch(`/api/recipes/${encodeURIComponent(code)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+    const out = await res.json();
+    if (!out.ok) { $("#mineStatus").textContent = out.error || "Kunne ikke lese oppskriften."; return; }
+    $("#linkInput").value = "";
+    await loadMine();
+    $("#mineStatus").textContent = `La til «${out.recipe.title}».`;
+  } catch {
+    $("#mineStatus").textContent = "Kunne ikke lese oppskriften.";
+  }
+};
+
 render();
 load();
+loadMine();

@@ -41,12 +41,26 @@
       </div>
     </section>
 
-    <p id="status" class="status muted"></p>
+    <div class="bar">
+      <p id="status" class="status muted"></p>
+      <a id="matprat" class="ext" target="_blank" rel="noopener" hidden>Søk på Matprat →</a>
+    </div>
     <ul id="results" class="results"></ul>
     <button type="button" id="more" class="more" hidden>Vis flere</button>
 
+    <section id="mineBox" class="card mine" hidden>
+      <h2>Deres oppskrifter</h2>
+      <p class="muted small">Oppskrifter dere har lenket til i ukemenyen kommer med i søket. Du kan også lime inn en lenke her.</p>
+      <form id="linkForm" class="add" autocomplete="off">
+        <input id="linkInput" type="url" inputmode="url" placeholder="https://… lenke til en oppskrift" aria-label="Lenke til en oppskrift">
+        <button class="primary" aria-label="Legg til oppskrift">+</button>
+      </form>
+      <p id="mineStatus" class="muted small"></p>
+    </section>
+
     <footer class="foot muted small">
       <p>Oppskriftene er fra <span id="sources">REMA 1000, Coop og KIWI</span>. Restefest viser bare tittel og ingredienser – trykk på en oppskrift for mengder og fremgangsmåte hos originalen.</p>
+      <p id="noFamily" hidden>Åpner du Restefest på en enhet der Uka er i bruk, søker den også i oppskriftene fra familiens ukemeny.</p>
       <p>Laget av <a href="/">Uka</a> · <span id="built"></span></p>
     </footer>
   </main>

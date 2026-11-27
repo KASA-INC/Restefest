@@ -6,6 +6,8 @@ import { makeVapid, sendPush } from "./push.js";
 import { changesPayload, cleanPrefs, dueBetween } from "./notify.js";
 import { isSkattUrl, skattEvents, skattIcs, skattKinds } from "./skatt.js";
 import { forecast, nearestPlace, roundCoord, searchPlace } from "./weather.js";
+import { minutes, recipeFrom } from "../public/restefest/les-oppskrift.js";
+import { keysFromLine } from "../public/restefest/ingredienser.js";
 
 // Familiekoden er både "rom-navn" og eneste nøkkel – den bør være vanskelig å gjette.
 const CODE_RE = /^[a-z0-9æøå-]{6,40}$/;
@@ -29,6 +31,7 @@ const DEVICE_RE = /^[a-z0-9-]{8,40}$/;
 const PROFILE_RE = /^p-[a-z0-9-]{4,40}$/;
 const SEED_RE = /^[a-z0-9]{4,24}$/;
 const MAX_PROFILES = 12;
+const MAX_RECIPES = 400; // familiens egne oppskrifter (fra lenker i ukemenyen og Restefest)
 // Profilbilder: DiceBear «Lorelei» av Lisa Wischofsky (CC0) på lyse, varme bakgrunner fra appens palett.
 // Frøet er tilfeldig – navn sendes aldri til DiceBear.
 const AVATAR_STYLE = "lorelei";
@@ -50,6 +53,19 @@ export default {
       } catch {
         return new Response(JSON.stringify({ days: [] }), { status: 502, headers: { "Content-Type": "application/json" } });
       }
+    }
+    // Familiens oppskrifter: GET /api/recipes/<kode> (liste), POST {url} (les inn én oppskrift fra lenken)
+    if ((m = url.pathname.match(/^\/api\/recipes\/([^/]+)$/))) {
+      const code = normCode(m[1]);
+      if (!CODE_RE.test(code)) return new Response("Ugyldig familiekode", { status: 400 });
+      const fam = env.FAMILY.get(env.FAMILY.idFromName(code));
+      const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+      if (req.method === "POST") {
+        let body;
+        try { body = await req.json(); } catch { return json({ ok: false, error: "Ugyldig forespørsel" }, 400); }
+        return json(await fam.recipeImport(String(body.url || "")));
+      }
+      return json({ recipes: await fam.recipesList() });
     }
     // Profilbilde: /api/avatar/<stil>/<frø>.svg (mellomlagret, endres aldri – ny stil = ny adresse)
     if ((m = url.pathname.match(/^\/api\/avatar\/lorelei\/([a-z0-9]{4,24})\.svg$/))) {
@@ -156,7 +172,8 @@ export class Family extends DurableObject {
       this.state = (await ctx.storage.get("state")) || { items: [], menu: {} };
       this.state.events ||= [];
       this.state.lists ||= [];
-      this.state.profiles ||= []; // profiler i familien (uten innlogging – man velger selv hvem man er)
+      this.state.profiles ||= [];
+      this.state.recipes ||= []; // oppskrifter familien har lenket til: { url, title, image, time, keys, host, ts } // profiler i familien (uten innlogging – man velger selv hvem man er)
       this.state.feeds ||= [];
       // Forslag (retter/avtaler) som er «glemt» med ×. Selve forslagene lages i appen fra lagrede data.
       this.state.hidden ||= { dish: [], event: [] };
@@ -256,6 +273,7 @@ export class Family extends DurableObject {
       await this.schedule(); // avtaler/ukemeny kan ha endret seg
     }
     if (msg.t === "feedAdd") this.refreshFeeds();
+    if (msg.t === "menu" && msg.link) this.recipeImport(String(msg.link)); // les inn oppskriften i bakgrunnen
   }
 
   webSocketClose(ws, code) {
@@ -478,6 +496,52 @@ export class Family extends DurableObject {
       keys.sort((a, b) => h[a].n - h[b].n || h[a].ts - h[b].ts);
       for (const k of keys.slice(0, keys.length - MAX_HISTORY)) delete h[k];
     }
+  }
+
+  // ---------- Familiens oppskrifter ----------
+  // Leser én oppskriftsside (som en nettleser) og tar vare på tittel, bilde, tid og ingredienser i grunnform,
+  // så Restefest kan søke i oppskriftene familien faktisk bruker. Fremgangsmåten lagres ikke.
+  async recipeImport(link) {
+    let url;
+    try {
+      url = new URL(/^https?:\/\//i.test(link) ? link : "https://" + link);
+      if (!/^https?:$/.test(url.protocol)) throw 0;
+    } catch {
+      return { ok: false, error: "Ugyldig lenke" };
+    }
+    url.hash = "";
+    const href = url.href;
+    const have = this.state.recipes.find((r) => r.url === href);
+    if (have) return { ok: true, recipe: have };
+    this.recipeTried ||= new Map();
+    if (Date.now() - (this.recipeTried.get(href) || 0) < 6 * 3600e3) return { ok: false, error: "Fant ingen oppskrift på siden" };
+    this.recipeTried.set(href, Date.now());
+    try {
+      const res = await fetch(href, { headers: { "User-Agent": "Mozilla/5.0 (compatible; Uka/1.0; +https://uka-app.no)", Accept: "text/html" }, redirect: "follow" });
+      if (!res.ok) return { ok: false, error: `Siden svarte ${res.status}` };
+      const html = (await res.text()).slice(0, 3_000_000);
+      const r = recipeFrom(html, href);
+      if (!r) return { ok: false, error: "Fant ingen oppskrift på siden" };
+      const keys = [...new Set(r.ingredients.flatMap(keysFromLine))];
+      const recipe = { url: href, title: r.title.slice(0, 200), image: String(r.image || "").slice(0, 500), time: minutes(r.time), keys: keys.slice(0, 60), host: url.hostname.replace(/^www\./, ""), ts: Date.now() };
+      if (this.state.recipes.some((x) => x.url === href)) return { ok: true, recipe };
+      this.state.recipes.push(recipe);
+      if (this.state.recipes.length > MAX_RECIPES) this.state.recipes.splice(0, this.state.recipes.length - MAX_RECIPES);
+      await this.ctx.storage.put("state", this.state);
+      this.broadcast();
+      return { ok: true, recipe };
+    } catch {
+      return { ok: false, error: "Kunne ikke hente siden" };
+    }
+  }
+
+  // Liste til Restefest. Lenker i ukemenyen som ikke er lest inn ennå, leses inn i bakgrunnen (noen om gangen).
+  recipesList() {
+    const known = new Set(this.state.recipes.map((r) => r.url));
+    const links = [];
+    for (const days of Object.values(this.state.menu)) for (const d of Object.values(days)) if (d.link && !known.has(d.link)) links.push(d.link);
+    (async () => { for (const l of links.slice(0, 5)) await this.recipeImport(l); })();
+    return this.state.recipes;
   }
 
   // ---------- Varsler ----------
