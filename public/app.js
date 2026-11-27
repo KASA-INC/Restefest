@@ -1991,6 +1991,28 @@ function mountRest() {
         onList: (l) => new Set(state.items.filter((i) => i.list === l && !i.done).map((i) => i.text.toLowerCase())),
         add: (texts, group, l) => addRecipeItems(texts, group, l),
       },
+      // Familiens kokebok (state.recipes): hjertet i Restefest legger til og tar ut.
+      book: {
+        has: (url) => (state.recipes || []).some((r) => r.url === url),
+        add: (recipe) => {
+          if ((state.recipes || []).some((r) => r.url === recipe.url)) return;
+          state.recipes = [...(state.recipes || []), { ...recipe, ts: Date.now() }];
+          send({ t: "bookAdd", recipe });
+          rf.render?.();
+        },
+        remove: (url) => {
+          const old = (state.recipes || []).find((r) => r.url === url);
+          if (!old) return;
+          state.recipes = state.recipes.filter((r) => r.url !== url);
+          send({ t: "bookDel", url });
+          rf.render?.();
+          toast(`«${old.title}» er tatt ut av kokeboka`, "Angre", () => {
+            state.recipes = [...state.recipes, old];
+            send({ t: "bookAdd", recipe: old });
+            rf.render?.();
+          });
+        },
+      },
       toast: (t) => toast(t),
     });
   });

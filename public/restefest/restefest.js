@@ -8,6 +8,7 @@
 //   valg.addToMenu(week, day, title, url)    → legger oppskriften i ukemenyen (bare i Uka)
 //   valg.importLink(url)                     → leser inn en oppskrift fra en lenke → { ok, recipe, error }
 //   valg.shopping                            → { lists(), onList(liste) → Set, add(tekster, { title, url }, liste) } (bare i Uka)
+//   valg.book                                → { has(lenke), add(oppskrift), remove(lenke) } – Familiens kokebok (bare i Uka)
 //   valg.toast(tekst)                        → kort beskjed
 import { matches, normQuery, isBasic, keysFromLine, DEFAULT_BASICS } from "./ingredienser.js";
 import { shardFile, shoppingText, bareName } from "./mengde.js";
@@ -24,8 +25,27 @@ const joinList = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join
 
 const TEMPLATE = `
   <div class="rf-seg rf-mode" role="tablist" aria-label="Måte å finne oppskrifter på">
-    <button type="button" role="tab" data-mode="rest">Fra rester</button><button type="button" role="tab" data-mode="search">Finn oppskrift</button>
+    <button type="button" role="tab" data-mode="rest">Fra rester</button><button type="button" role="tab" data-mode="search">Finn oppskrift</button><button type="button" role="tab" data-mode="book">Kokebok</button>
   </div>
+
+  <section class="rf-card" data-rf="bookBox" hidden>
+    <h2>Familiens kokebok</h2>
+    <p class="rf-muted rf-small">Det dere legger i ukemenyen eller på handlelisten havner her. Hjertet legger til og tar ut.</p>
+    <form class="rf-add" data-rf="linkForm" autocomplete="off">
+      <input data-rf="linkInput" type="url" inputmode="url" placeholder="Lim inn lenke til en oppskrift" aria-label="Lenke til en oppskrift">
+      <button class="rf-plus" aria-label="Legg til oppskrift">+</button>
+    </form>
+    <p class="rf-muted rf-small" data-rf="mineStatus" hidden></p>
+    <div class="rf-filters">
+      <form class="rf-add rf-grow" data-rf="bookForm" autocomplete="off" role="search">
+        <input data-rf="bookSearch" type="search" placeholder="Søk i kokeboka" enterkeyhint="search" aria-label="Søk i kokeboka">
+      </form>
+      <div class="rf-seg rf-bsort" role="group" aria-label="Sortering">
+        <button type="button" data-bsort="new">Nyeste</button><button type="button" data-bsort="az">A–Å</button>
+      </div>
+    </div>
+    <div class="rf-scroll"><ul class="rf-chips rf-types" data-rf="bookTypes" aria-label="Type rett"></ul></div>
+  </section>
 
   <section class="rf-card" data-rf="searchBox" hidden>
     <form class="rf-add" data-rf="searchForm" autocomplete="off" role="search">
@@ -84,15 +104,6 @@ const TEMPLATE = `
   <ul class="rf-results" data-rf="results"></ul>
   <button type="button" class="rf-more" data-rf="more" hidden>Vis flere</button>
 
-  <section class="rf-card rf-mine" data-rf="mineBox" hidden>
-    <h2>Deres oppskrifter</h2>
-    <p class="rf-muted rf-small">Oppskrifter dere har lenket til i ukemenyen kommer med i søket. Du kan også lime inn en lenke her.</p>
-    <form class="rf-add" data-rf="linkForm" autocomplete="off">
-      <input data-rf="linkInput" type="url" inputmode="url" placeholder="https://… lenke til en oppskrift" aria-label="Lenke til en oppskrift">
-      <button class="rf-plus" aria-label="Legg til oppskrift">+</button>
-    </form>
-    <p class="rf-muted rf-small" data-rf="mineStatus"></p>
-  </section>
 
   <p class="rf-foot rf-muted rf-small">Oppskriftene er fra <span data-rf="sources">REMA 1000, Coop og KIWI</span>. Restefest viser bare tittel og ingredienser – trykk på en oppskrift for mengder og fremgangsmåte hos originalen. <span data-rf="built"></span></p>
 `;
@@ -115,6 +126,8 @@ export function mountRestefest(root, opts = {}) {
   const index = new WeakMap(); // oppskrift → { title, cats, keys, type, main } i søkbar form
   let bType = store.get("type", "middag"), bMain = store.get("main", "alle"), bTime = store.get("time", 0), bSort = store.get("sort", "mix");
   let typeBeforeSearch = null;
+  let kType = store.get("bookType", "alle"), kSort = store.get("bookSort", "new"), kQuery = "";
+  if (mode === "book" && !opts.book) mode = "rest";
   const ixOf = (r) => {
     let ix = index.get(r);
     if (!ix) { ix = { title: fold(r[0]), cats: fold((r[5] || []).join(" ")), keys: r[6] || [], ...classify(r) }; index.set(r, ix); }
@@ -124,8 +137,19 @@ export function mountRestefest(root, opts = {}) {
   const day = new Date().toISOString().slice(0, 10);
   const mixKey = (url) => { let h = 2166136261; for (const ch of day + url) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
 
-  // Familiens egne oppskrifter i samme form som basen: [tittel, lenke, -1, bilde, minutter, [], ingredienser, nettsted]
-  const mine = () => (opts.familyRecipes?.() || []).map((r) => [r.title, r.url, -1, r.image, r.time, [], r.keys, r.host]);
+  // Familiens kokebok (opts.familyRecipes) i samme form som basen:
+  // [tittel, lenke, -1, bilde, minutter, kategorier, ingredienser, nettsted, lagt til]. Oppskrifter som også finnes i
+  // basen vises med basens data, så de ikke kommer to ganger.
+  let byUrl = new Map();
+  const bookRaw = () => opts.familyRecipes?.() || [];
+  const inBook = (url) => (opts.book ? opts.book.has(url) : bookRaw().some((r) => r.url === url));
+  const mine = () => bookRaw().map((r) => {
+    const b = byUrl.get(r.url);
+    return b ? Object.assign(b.slice(), { 8: r.ts || 0 }) : [r.title, r.url, -1, r.image, r.time, r.cats || [], r.keys || [], r.host, r.ts || 0];
+  });
+  // Oppskriften slik kokeboka lagrer den
+  const asBook = (r) => ({ url: r[1], title: r[0], image: r[3] || "", time: r[4] || 0, keys: r[6] || [], cats: r[5] || [], host: r[2] < 0 ? r[7] : db?.sources[r[2]] || "" });
+  const toBook = (r) => { if (opts.book && !inBook(r[1])) opts.book.add(asBook(r)); };
 
   async function load() {
     $("status").textContent = "Henter oppskrifter …";
@@ -135,6 +159,7 @@ export function mountRestefest(root, opts = {}) {
       $("status").textContent = "Kunne ikke hente oppskriftene. Prøv igjen senere.";
       return;
     }
+    byUrl = new Map(db.recipes.map((r) => [r[1], r]));
     const count = new Map();
     for (const r of db.recipes) for (const k of r[6]) count.set(k, (count.get(k) || 0) + 1);
     vocab = [...count].filter(([k, n]) => n >= 3 && !isBasic(k, ["salt", "pepper", "vann", "sukker", "hvetemel", "buljong"])).sort((a, b) => b[1] - a[1]).map(([k]) => k);
@@ -157,9 +182,7 @@ export function mountRestefest(root, opts = {}) {
   function search() {
     if (!have.length) return [];
     const out = [];
-    const own = mine();
-    const seen = new Set(own.map((r) => r[1]));
-    for (const r of [...own, ...(db ? db.recipes.filter((x) => !seen.has(x[1])) : [])]) {
+    for (const r of allRecipes()) {
       const s = score(r);
       if (!s.used.length) continue;
       const restsUsed = have.filter((q) => r[6].some((k) => matches(q, k))).length;
@@ -167,16 +190,34 @@ export function mountRestefest(root, opts = {}) {
       out.push({ r, ...s, restsUsed });
     }
     // Først flest av restene dine, så færrest ingredienser som mangler, så familiens egne, så korteste tid.
-    out.sort((a, b) => b.restsUsed - a.restsUsed || a.need.length - b.need.length || (b.r[2] < 0) - (a.r[2] < 0) || (a.r[4] || 999) - (b.r[4] || 999));
+    out.sort((a, b) => b.restsUsed - a.restsUsed || a.need.length - b.need.length || inBook(b.r[1]) - inBook(a.r[1]) || (a.r[4] || 999) - (b.r[4] || 999));
     return out;
   }
 
   // «Finn oppskrift»: filtrer på type rett, hovedingrediens og tid, og eventuelt søkeord.
   // Hvert søkeord må finnes i tittelen, kategoriene eller ingrediensene; treff i tittelen teller mest.
   function allRecipes() {
-    const own = mine();
-    const seen = new Set(own.map((r) => r[1]));
-    return [...own, ...(db ? db.recipes.filter((x) => !seen.has(x[1])) : [])];
+    const extra = mine().filter((r) => r[2] < 0); // familiens oppskrifter som ikke finnes i basen
+    return [...extra, ...(db ? db.recipes : [])];
+  }
+
+  // Kokeboka: filtrer på type og søkeord, sorter på nyeste eller A–Å.
+  function bookList() {
+    const q = fold(kQuery).trim();
+    const words = q ? q.split(/\s+/).filter(Boolean) : [];
+    const counts = {};
+    const out = [];
+    for (const r of mine()) {
+      const ix = ixOf(r);
+      const sc = words.length ? scoreText(ix, q, words) : 1;
+      if (!sc) continue;
+      counts.alle = (counts.alle || 0) + 1;
+      counts[ix.type] = (counts[ix.type] || 0) + 1;
+      if (kType !== "alle" && ix.type !== kType) continue;
+      out.push({ r, sc, used: [], need: [] });
+    }
+    out.sort(kSort === "az" ? (a, b) => a.r[0].localeCompare(b.r[0], "nb") : (a, b) => (b.r[8] || 0) - (a.r[8] || 0));
+    return { hits: out, counts };
   }
   function scoreText(ix, q, words) {
     let sc = 0;
@@ -202,12 +243,10 @@ export function mountRestefest(root, opts = {}) {
       const ix = ixOf(r);
       const sc = words.length ? scoreText(ix, q, words) : 1;
       if (!sc) continue;
-      const own = r[2] < 0;
       counts.alle = (counts.alle || 0) + 1;
       counts[ix.type] = (counts[ix.type] || 0) + 1;
-      if (own) counts.deres = (counts.deres || 0) + 1;
-      if (bType === "deres" ? !own : bType !== "alle" && ix.type !== bType) continue;
-      if (bMain !== "alle" && (HAS_MAIN.has(ix.type) || bType === "deres" || bType === "alle") && ix.main !== bMain) continue;
+      if (bType !== "alle" && ix.type !== bType) continue;
+      if (bMain !== "alle" && (HAS_MAIN.has(ix.type) || bType === "alle") && ix.main !== bMain) continue;
       if (bTime && !(r[4] && r[4] <= bTime)) continue;
       out.push({ r, sc, used: [], need: [] });
     }
@@ -221,7 +260,8 @@ export function mountRestefest(root, opts = {}) {
   }
 
   // Nedtrekksliste: legg oppskriften i ukemenyen (dagene i uken menuWeek() gir, normalt neste uke).
-  function menuPicker(title, url) {
+  function menuPicker(r) {
+    const [title, url] = r;
     const wk = opts.addToMenu && opts.menuWeek?.();
     if (!wk) return null;
     const sel = document.createElement("select");
@@ -239,6 +279,7 @@ export function mountRestefest(root, opts = {}) {
       const day = Number(v);
       const d = wk.days.find((x) => x.day === day);
       if (d?.dish && !confirm(`${d.label} står det «${d.dish}». Bytte til «${title}»?`)) return;
+      toBook(r);
       opts.addToMenu(wk.key, day, title, url);
       toast(`«${title}» lagt i ukemenyen ${d.label.toLowerCase()}`);
       render();
@@ -347,7 +388,7 @@ export function mountRestefest(root, opts = {}) {
       const texts = [...ul.querySelectorAll("input:checked:not(:disabled)")].map((c) => c.value);
       dlg.close();
       const label = lines ? `${title} (${portions} pors.)` : title;
-      if (texts.length) sh.add(texts, { title: label, url }, l);
+      if (texts.length) { toBook(r); sh.add(texts, { title: label, url }, l); }
     };
     dlg.addEventListener("close", () => dlg.remove());
     dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
@@ -372,9 +413,8 @@ export function mountRestefest(root, opts = {}) {
     const h = document.createElement("h3"); h.textContent = title;
     const meta = document.createElement("div"); meta.className = "rf-meta";
     meta.textContent = [src < 0 ? r[7] : db?.sources[src], min ? `${min} min` : ""].filter(Boolean).join(" · ");
-    if (src < 0) meta.insertAdjacentHTML("beforeend", '<span class="rf-tag">Deres</span>');
     body.append(h, meta);
-    if (mode === "search") {
+    if (mode !== "rest") {
       li.classList.add("rf-tile");
     } else {
       const use = document.createElement("div"); use.className = "rf-use";
@@ -386,7 +426,21 @@ export function mountRestefest(root, opts = {}) {
     }
     a.append(body);
     li.append(a);
-    const pick = menuPicker(title, url);
+    if (opts.book) {
+      const saved = inBook(url);
+      const heart = document.createElement("button");
+      heart.type = "button";
+      heart.className = "rf-heart" + (saved ? " on" : "");
+      heart.setAttribute("aria-pressed", String(saved));
+      heart.setAttribute("aria-label", saved ? `Ta «${title}» ut av kokeboka` : `Legg «${title}» i kokeboka`);
+      heart.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3l-1.2-1.1C6 14.9 3 12.2 3 8.8 3 6.1 5.1 4 7.8 4c1.6 0 3.1.7 4.2 1.9C13.1 4.7 14.6 4 16.2 4 18.9 4 21 6.1 21 8.8c0 3.4-3 6.1-7.8 10.4L12 20.3z"/></svg>';
+      heart.onclick = () => {
+        if (inBook(url)) opts.book.remove(url);
+        else { opts.book.add(asBook(r)); toast(`«${title}» er lagt i kokeboka`); }
+      };
+      li.append(heart);
+    }
+    const pick = menuPicker(r);
     const shop = opts.shopping && (r[6] || []).length ? Object.assign(document.createElement("button"), { type: "button", className: "rf-shop", textContent: "+ Handleliste" }) : null;
     if (shop) { shop.setAttribute("aria-label", `Legg ingrediensene til «${title}» på handlelisten`); shop.onclick = () => shopDialog(r, shop); }
     if (pick || shop) {
@@ -399,10 +453,13 @@ export function mountRestefest(root, opts = {}) {
   }
 
   function render() {
-    const searching = mode === "search";
+    const searching = mode === "search", booking = mode === "book";
     root.querySelectorAll("[data-mode]").forEach((b) => { b.classList.toggle("on", b.dataset.mode === mode); b.setAttribute("aria-selected", String(b.dataset.mode === mode)); });
+    root.querySelector('[data-mode="book"]').hidden = !opts.book;
     $("searchBox").hidden = !searching;
-    $("restBox").hidden = searching;
+    $("bookBox").hidden = !booking;
+    $("restBox").hidden = mode !== "rest";
+    root.querySelectorAll("[data-bsort]").forEach((b) => b.classList.toggle("on", b.dataset.bsort === kSort));
     if ($("searchInput").value !== query && document.activeElement !== $("searchInput")) $("searchInput").value = query;
     const chip = (label, on, click, count) => {
       const li = document.createElement("li");
@@ -444,21 +501,26 @@ export function mountRestefest(root, opts = {}) {
       b.disabled = n !== 99 && n > Math.max(have.length, 1);
     });
     const m = $("matprat");
-    const ext = searching ? query.trim() : have.join(" ");
+    const ext = booking ? "" : searching ? query.trim() : have.join(" ");
     m.hidden = !ext;
     m.href = `https://www.matprat.no/sok?category=recipes&page=1&searchFor=${encodeURIComponent(ext)}&sort=relevant`;
-    const own = mine();
-    $("mineBox").hidden = !opts.importLink;
-    if (!$("mineStatus").dataset.msg) $("mineStatus").textContent = own.length ? `${own.length} ${own.length === 1 ? "oppskrift" : "oppskrifter"} fra familien` : "Ingen ennå.";
-    if (!db && !own.length) return;
+    $("linkForm").hidden = !opts.importLink;
+    if (!db && !bookRaw().length) return;
     let hits;
-    if (searching) {
+    if (booking) {
+      const res = bookList();
+      hits = res.hits;
+      const c = res.counts;
+      const setK = (t) => () => { kType = t; store.set("bookType", t); shown = PAGE; render(); };
+      $("bookTypes").replaceChildren(...[["alle", "Alle"], ...TYPES].filter(([k]) => k === kType || k === "alle" || c[k]).map(([k, label]) => chip(label, k === kType, setK(k), c[k] || 0)));
+      $("results").classList.add("rf-grid");
+    } else if (searching) {
       const res = browse();
       hits = res.hits;
       const c = res.counts;
-      const types = [["alle", "Alle"], ...(c.deres ? [["deres", "Deres"]] : []), ...TYPES];
+      const types = [["alle", "Alle"], ...TYPES];
       $("types").replaceChildren(...types.filter(([k]) => k === bType || k === "alle" || c[k]).map(([k, label]) => chip(label, k === bType, setType(k), c[k] || 0)));
-      const showMain = bType === "alle" || bType === "deres" || HAS_MAIN.has(bType);
+      const showMain = bType === "alle" || HAS_MAIN.has(bType);
       // Sørg for at valgt type synes i raden som rulles sidelengs (uten å rulle selve siden).
       const on = $("types").querySelector(".on"), box = $("types").parentElement;
       if (on && box.clientWidth) {
@@ -473,7 +535,12 @@ export function mountRestefest(root, opts = {}) {
       hits = search();
       $("results").classList.remove("rf-grid");
     }
-    if (searching) {
+    if (booking) {
+      const total = bookRaw().length;
+      $("status").textContent = !total ? "Kokeboka er tom ennå. Trykk på hjertet på en oppskrift, eller legg en rett i ukemenyen eller på handlelisten."
+        : hits.length ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}${hits.length < total ? ` av ${total}` : ""} i kokeboka`
+        : "Ingen oppskrifter i kokeboka passer.";
+    } else if (searching) {
       $("status").textContent = hits.length
         ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
         : !db ? "Henter oppskrifter …" : query.trim() ? "Fant ingen oppskrifter. Prøv et annet ord eller «Alle»." : "Ingen oppskrifter med disse valgene.";
@@ -554,15 +621,28 @@ export function mountRestefest(root, opts = {}) {
   $("sort").onchange = (e) => { bSort = e.target.value; store.set("sort", bSort); shown = PAGE; render(); };
   $("searchForm").onsubmit = (e) => { e.preventDefault(); clearTimeout(typing); setQuery($("searchInput").value); $("searchInput").blur(); };
   $("more").onclick = () => { shown += PAGE; render(); };
+  root.querySelectorAll("[data-bsort]").forEach((b) => (b.onclick = () => { kSort = b.dataset.bsort; store.set("bookSort", kSort); shown = PAGE; render(); }));
+  let kTyping;
+  $("bookSearch").oninput = (e) => { clearTimeout(kTyping); kTyping = setTimeout(() => { kQuery = e.target.value; shown = PAGE; render(); }, 150); };
+  $("bookForm").onsubmit = (e) => { e.preventDefault(); kQuery = $("bookSearch").value; render(); $("bookSearch").blur(); };
   $("linkForm").onsubmit = async (e) => {
     e.preventDefault();
     const url = $("linkInput").value.trim();
     if (!url || !opts.importLink) return;
+    // Finnes oppskriften i basen (også våre egne sider), trengs ingen innlesing.
+    const known = byUrl.get(url) || byUrl.get(url.replace(/\/?$/, "/")) || byUrl.get(url.replace(/\/$/, ""));
+    if (known) {
+      toBook(known);
+      $("linkInput").value = "";
+      Object.assign($("mineStatus"), { hidden: false, textContent: `«${known[0]}» er lagt i kokeboka.` });
+      render();
+      return;
+    }
     const st = $("mineStatus");
-    st.dataset.msg = "1";
+    st.hidden = false;
     st.textContent = "Leser oppskriften …";
     const out = await opts.importLink(url).catch(() => ({ ok: false }));
-    st.textContent = out.ok ? `La til «${out.recipe.title}».` : out.error || "Kunne ikke lese oppskriften.";
+    st.textContent = out.ok ? `«${out.recipe.title}» er lagt i kokeboka.` : out.error || "Kunne ikke lese oppskriften.";
     if (out.ok) $("linkInput").value = "";
     render();
   };

@@ -31,7 +31,7 @@ const DEVICE_RE = /^[a-z0-9-]{8,40}$/;
 const PROFILE_RE = /^p-[a-z0-9-]{4,40}$/;
 const SEED_RE = /^[a-z0-9]{4,24}$/;
 const MAX_PROFILES = 12;
-const MAX_RECIPES = 400; // familiens egne oppskrifter (fra lenker i ukemenyen og Restefest)
+const MAX_RECIPES = 600; // Familiens kokebok (fra ukemenyen, handlelisten, lenker og hjertet i Restefest)
 // Profilbilder: DiceBear «Lorelei» av Lisa Wischofsky (CC0) på lyse, varme bakgrunner fra appens palett.
 // Frøet er tilfeldig – navn sendes aldri til DiceBear.
 const AVATAR_STYLE = "lorelei";
@@ -324,6 +324,31 @@ export class Family extends DurableObject {
         return n > 0;
       }
       // Fjern alle varene som hører til en rett (som ikke er handlet ennå).
+      // Familiens kokebok: hjertet i Restefest, eller en oppskrift lagt i ukemenyen/på handlelisten derfra.
+      // Restefest sender oppskriftens data (den finnes i oppskriftsbasen), så siden trenger ikke leses.
+      case "bookAdd": {
+        const r = msg.recipe || {};
+        const url = /^https?:\/\//.test(r.url || "") ? str(r.url, 500) : "";
+        const title = str(r.title, 200);
+        if (!url || !title) return false;
+        st.bookRemoved = (st.bookRemoved || []).filter((u) => u !== url);
+        if (st.recipes.some((x) => x.url === url)) return false;
+        const strs = (a, n, m) => (Array.isArray(a) ? a.map((x) => str(x, m)).filter(Boolean).slice(0, n) : []);
+        let host = str(r.host, 60);
+        if (!host) try { host = new URL(url).hostname.replace(/^www\./, ""); } catch {}
+        st.recipes.push({ url, title, image: /^https?:\/\//.test(r.image || "") ? str(r.image, 500) : "", time: Math.max(0, Math.min(9999, Number(r.time) || 0)), keys: strs(r.keys, 60, 60), cats: strs(r.cats, 3, 40), host, ts: Date.now() });
+        if (st.recipes.length > MAX_RECIPES) st.recipes.splice(0, st.recipes.length - MAX_RECIPES);
+        return true;
+      }
+      case "bookDel": {
+        const url = str(msg.url, 500);
+        const n = st.recipes.length;
+        st.recipes = st.recipes.filter((x) => x.url !== url);
+        if (st.recipes.length === n) return false;
+        // Husk at den er tatt ut, så den ikke kommer tilbake av seg selv fra en lenke i ukemenyen.
+        st.bookRemoved = [...(st.bookRemoved || []).filter((u) => u !== url), url].slice(-300);
+        return true;
+      }
       case "delGroup": {
         const title = str(msg.title, 80);
         const n = st.items.length;
@@ -562,6 +587,7 @@ export class Family extends DurableObject {
       const recipe = { url: href, title: r.title.slice(0, 200), image: String(r.image || "").slice(0, 500), time: minutes(r.time), keys: keys.slice(0, 60), host: url.hostname.replace(/^www\./, ""), ts: Date.now() };
       if (this.state.recipes.some((x) => x.url === href)) return { ok: true, recipe };
       this.state.recipes.push(recipe);
+      if (this.state.bookRemoved) this.state.bookRemoved = this.state.bookRemoved.filter((u) => u !== href);
       if (this.state.recipes.length > MAX_RECIPES) this.state.recipes.splice(0, this.state.recipes.length - MAX_RECIPES);
       await this.ctx.storage.put("state", this.state);
       this.broadcast();
@@ -575,7 +601,8 @@ export class Family extends DurableObject {
   recipesList() {
     const known = new Set(this.state.recipes.map((r) => r.url));
     const links = [];
-    for (const days of Object.values(this.state.menu)) for (const d of Object.values(days)) if (d.link && !known.has(d.link)) links.push(d.link);
+    const removed = new Set(this.state.bookRemoved || []);
+    for (const days of Object.values(this.state.menu)) for (const d of Object.values(days)) if (d.link && !known.has(d.link) && !removed.has(d.link)) links.push(d.link);
     (async () => { for (const l of links.slice(0, 5)) await this.recipeImport(l); })();
     return this.state.recipes;
   }
