@@ -26,6 +26,11 @@ const MAX_SUBS = 40;              // enheter med varsler per familie
 const CHANGE_DELAY = 90 * 1000;   // endringer samles i halvannet minutt før de varsles
 const LOOKAHEAD = 36 * 3600e3;    // hvor langt fram neste «vekking» planlegges
 const DEVICE_RE = /^[a-z0-9-]{8,40}$/;
+const PROFILE_RE = /^p-[a-z0-9-]{4,40}$/;
+const SEED_RE = /^[a-z0-9]{4,24}$/;
+const MAX_PROFILES = 12;
+// Profilbilder: DiceBear «Loops» (CC0) i appens farger. Frøet er tilfeldig – navn sendes aldri til DiceBear.
+const AVATAR_COLORS = "b5562f,c9922f,7f9461,3a2a20,8c7666,d9774b";
 
 const normCode = (s) => decodeURIComponent(s).normalize("NFC").trim().toLowerCase();
 
@@ -43,6 +48,19 @@ export default {
       } catch {
         return new Response(JSON.stringify({ days: [] }), { status: 502, headers: { "Content-Type": "application/json" } });
       }
+    }
+    // Profilbilde: /api/avatar/<frø>.svg (mellomlagret, endres aldri)
+    if ((m = url.pathname.match(/^\/api\/avatar\/([a-z0-9]{4,24})\.svg$/))) {
+      const cache = caches.default;
+      const key = new Request(url.origin + url.pathname);
+      let res = await cache.match(key);
+      if (!res) {
+        const r = await fetch(`https://api.dicebear.com/11.x/loops/svg?seed=${m[1]}&backgroundColor=${AVATAR_COLORS}`);
+        if (!r.ok) return new Response("Fant ikke bildet", { status: 502 });
+        res = new Response(await r.text(), { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=31536000, immutable" } });
+        ctx.waitUntil(cache.put(key, res.clone()));
+      }
+      return res;
     }
     // Stedssøk: /api/place?q=Bryne  eller  /api/place?lat=..&lon=.. (nærmeste sted)
     if (url.pathname === "/api/place") {
@@ -136,6 +154,7 @@ export class Family extends DurableObject {
       this.state = (await ctx.storage.get("state")) || { items: [], menu: {} };
       this.state.events ||= [];
       this.state.lists ||= [];
+      this.state.profiles ||= []; // profiler i familien (uten innlogging – man velger selv hvem man er)
       this.state.feeds ||= [];
       // Forslag (retter/avtaler) som er «glemt» med ×. Selve forslagene lages i appen fra lagrede data.
       this.state.hidden ||= { dish: [], event: [] };
@@ -224,7 +243,7 @@ export class Family extends DurableObject {
     }
     if (msg.t === "feedRefresh") return void this.refreshFeeds(!!msg.force);
     if (msg.t === "hello") {
-      if (DEVICE_RE.test(msg.device)) ws.serializeAttachment({ device: msg.device });
+      ws.serializeAttachment({ device: DEVICE_RE.test(msg.device) ? msg.device : "", profile: PROFILE_RE.test(msg.profile) ? msg.profile : "" });
       return;
     }
     if (!this.apply(msg)) return;
@@ -300,11 +319,42 @@ export class Family extends DurableObject {
         st.items = st.items.filter((i) => !(i.list === msg.list && i.done));
         return st.items.length !== n;
       }
-      // Egne lister (ønskelister o.l.)
+      // Egne lister (ønskelister o.l.). Med `owner` er listen privat for en profil.
       case "listAdd": {
         const name = str(msg.name, 40);
         if (!name || !LIST_ID_RE.test(msg.id) || st.lists.some((l) => l.id === msg.id) || st.lists.length >= MAX_LISTS) return false;
-        st.lists.push({ id: msg.id, name });
+        const l = { id: msg.id, name };
+        if (st.profiles.some((p) => p.id === msg.owner)) l.owner = msg.owner;
+        st.lists.push(l);
+        return true;
+      }
+      case "listOwner": {
+        const l = st.lists.find((x) => x.id === msg.id);
+        if (!l) return false;
+        if (msg.owner && st.profiles.some((p) => p.id === msg.owner)) l.owner = msg.owner;
+        else delete l.owner;
+        return true;
+      }
+
+      // Profiler
+      case "profileAdd": {
+        const name = str(msg.name, 30);
+        if (!name || !PROFILE_RE.test(msg.id) || !SEED_RE.test(msg.seed) || st.profiles.some((p) => p.id === msg.id) || st.profiles.length >= MAX_PROFILES) return false;
+        st.profiles.push({ id: msg.id, name, seed: msg.seed });
+        return true;
+      }
+      case "profileEdit": {
+        const p = st.profiles.find((x) => x.id === msg.id);
+        const name = str(msg.name, 30);
+        if (!p || !name) return false;
+        p.name = name;
+        if (SEED_RE.test(msg.seed)) p.seed = msg.seed;
+        return true;
+      }
+      case "profileDel": {
+        if (!st.profiles.some((p) => p.id === msg.id)) return false;
+        st.profiles = st.profiles.filter((p) => p.id !== msg.id);
+        for (const l of st.lists) if (l.owner === msg.id) delete l.owner; // private lister blir felles, ingenting slettes
         return true;
       }
       case "listRename": {
@@ -495,14 +545,17 @@ export class Family extends DurableObject {
 
   // Noen la til en vare eller en avtale: samles opp og varsles til de andre etter en liten stund.
   async noteChange(msg, ws) {
-    const device = (() => { try { return ws.deserializeAttachment()?.device || ""; } catch { return ""; } })();
+    const att = (() => { try { return ws.deserializeAttachment() || {}; } catch { return {}; } })();
+    const device = att.device || "";
+    const who = this.state.profiles.find((p) => p.id === att.profile)?.name || "";
     let change = null;
     if (msg.t === "add") {
       const it = this.state.items[this.state.items.length - 1];
-      if (it) change = { kind: "item", text: it.text, list: it.list, device };
+      const priv = this.state.lists.find((l) => l.id === it?.list)?.owner;
+      if (it && !priv) change = { kind: "item", text: it.text, list: it.list, device, who }; // private lister varsles ikke
     } else if (msg.t === "evAdd") {
       const ev = this.state.events[this.state.events.length - 1];
-      if (ev && ev.kind !== "bday") change = { kind: "event", title: ev.title, date: ev.date, time: ev.time, device };
+      if (ev && ev.kind !== "bday") change = { kind: "event", title: ev.title, date: ev.date, time: ev.time, device, who };
     }
     if (!change || !this.subs.some((s) => s.prefs.changes)) return;
     this.pending ||= { at: Date.now() + CHANGE_DELAY, changes: [] };

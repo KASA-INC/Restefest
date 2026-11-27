@@ -63,6 +63,15 @@ Skatteetaten har ingen kalenderfil, men publiserer skattekalenderen som RSS. `sr
 
 Familier som vil ha fristene, legger adressen inn under Innstillinger → Andre kalendere. Da hentes fristene direkte fra Skatteetaten. Adressen kan også abonneres på i Kalender på iPhone. Skatteetaten legger bare ut inneværende års datoer, så faste frister føres ett år fram som «(forventet)» til de offisielle datoene er publisert.
 
+## Profiler
+
+Hver familie kan legge til profiler (maks 12) under profilknappen øverst til høyre. Det er ingen innlogging: hver enhet velger selv hvilken profil den bruker («Hvem er du?»), og man kan bytte fritt. Valget lagres bare på enheten. Profiler brukes til:
+
+- **Private lister:** en egen liste kan gjøres «privat» for en profil. Da vises den bare på enheter som har valgt den profilen. Det er ment for ting som ikke er interessante for de andre, ikke for hemmeligheter. Slettes profilen, blir listene felles.
+- **Navn i varsler:** «Ida la til på handlelisten: Melk og Egg».
+
+Profilbildene er DiceBears «Loops» (CC0) i appens farger. De hentes via `/api/avatar/<frø>.svg`, som mellomlagres. Frøet er tilfeldig, så navn sendes aldri til DiceBear.
+
 ## Vær
 
 Under Innstillinger → Vær velger familien et sted, med søk i Kartverkets stedsnavn eller «Bruk min posisjon». Værvarselet fra Meteorologisk institutt (api.met.no, samme som Yr) vises på «I dag» (symbol, min./maks. og nedbør), i ukemenyen (symbol og makstemperatur) og i ukevisningen i kalenderen. `src/weather.js` henter varselet via workeren (`/api/weather`) med User-Agent og mellomlagring, slik MET krever, og lager én oversikt per dag med symbolet midt på dagen. Ikonene er Arcticons sine vær-emojier.

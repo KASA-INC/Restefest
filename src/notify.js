@@ -129,14 +129,15 @@ const join = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", 
 export function changesPayload(state, changes) {
   const lines = [];
   const byList = {};
-  for (const c of changes.filter((c) => c.kind === "item")) (byList[c.list] ||= []).push(c.text);
-  for (const [list, texts] of Object.entries(byList)) {
+  for (const c of changes.filter((c) => c.kind === "item")) (byList[(c.who || "") + "|" + c.list] ||= []).push(c.text);
+  for (const [k, texts] of Object.entries(byList)) {
+    const [who, list] = [k.slice(0, k.indexOf("|")), k.slice(k.indexOf("|") + 1)];
     const shown = texts.slice(0, 5);
     const more = texts.length - shown.length;
-    lines.push(`Lagt til på ${listName(state, list)}: ${join(more ? [...shown, `${more} til`] : shown)}`);
+    lines.push(`${who ? `${who} la til` : "Lagt til"} på ${listName(state, list)}: ${join(more ? [...shown, `${more} til`] : shown)}`);
   }
   const evs = changes.filter((c) => c.kind === "event");
-  for (const e of evs.slice(0, 3)) lines.push(`Ny avtale: ${e.title}, ${dateText(e.date)}${e.time ? ` kl. ${e.time}` : ""}`);
+  for (const e of evs.slice(0, 3)) lines.push(`Ny avtale${e.who ? ` fra ${e.who}` : ""}: ${e.title}, ${dateText(e.date)}${e.time ? ` kl. ${e.time}` : ""}`);
   if (evs.length > 3) lines.push(`… og ${evs.length - 3} avtaler til`);
   if (!lines.length) return null;
   const onlyItems = !evs.length;

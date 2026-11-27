@@ -176,7 +176,8 @@ main { padding: 0 var(--sp-4); }
 .top {
   position: sticky; top: 0; z-index: 5;
   display: grid; grid-template-columns: 1fr auto auto; align-items: center;
-  grid-template-areas: "brand conn gear" "title title title";
+  grid-template-columns: 1fr auto auto auto;
+  grid-template-areas: "brand conn me gear" "title title title title";
   column-gap: 10px;
   padding: calc(6px + env(safe-area-inset-top)) var(--sp-4) 6px;
   background: color-mix(in srgb, var(--bg) 82%, transparent);
@@ -504,3 +505,27 @@ dialog::backdrop { background: rgb(45 28 18 / 0.45); }
 .place-hits:empty { display: none; }
 .place-hits button { width: 100%; text-align: left; background: var(--surface); border: 0; border-radius: var(--r-md); padding: var(--sp-2) var(--sp-3); display: grid; }
 .place-hits small { color: var(--muted); font-size: var(--fs-xs); }
+
+/* ---------- Profiler ---------- */
+.avatar { display: block; border-radius: 50%; background: var(--line); object-fit: cover; flex: none; }
+.me-btn { grid-area: me; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: none; display: grid; place-items: center; color: var(--muted); }
+.me-btn .avatar { width: 28px; height: 28px; box-shadow: 0 0 0 2px var(--surface); }
+.me-btn .i { width: 24px; height: 24px; }
+.prof-list { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: var(--sp-3); }
+.prof-list button { width: 100%; background: none; border: 0; padding: var(--sp-1); border-radius: var(--r-md); display: grid; justify-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 500; }
+.prof-list .avatar { width: 64px; height: 64px; }
+.prof-list .on .avatar { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+.prof-list .on { color: var(--accent); font-weight: 600; }
+.prof-list .add-prof .plus { width: 64px; height: 64px; border-radius: 50%; border: 2px dashed var(--line); display: grid; place-items: center; color: var(--accent); }
+.prof-list.editing button:not(.add-prof) .avatar { opacity: .75; }
+.prof-list.editing button:not(.add-prof) span::after { content: " ✎"; color: var(--muted); }
+.prof-actions { display: flex; justify-content: space-between; margin-top: var(--sp-2); }
+.prof-form { display: grid; gap: var(--sp-3); }
+.prof-seeds { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-3); justify-items: center; margin-top: var(--sp-1); }
+.prof-seeds button { padding: 0; border: 0; background: none; border-radius: 50%; }
+.prof-seeds .avatar { width: 56px; height: 56px; }
+.prof-seeds .on .avatar { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+.pills .avatar { width: 18px; height: 18px; margin: 0 6px 0 -4px; }
+.pills button { display: inline-flex; align-items: center; }
+.list-tools { flex-wrap: wrap; row-gap: 0; }
+.pills .count { margin-left: 4px; }

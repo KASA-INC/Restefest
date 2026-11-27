@@ -16,7 +16,7 @@ const store = {
 };
 
 let code = null;
-let state = { items: [], menu: {}, events: [], history: {}, lists: [], feeds: [], ext: [], feedInfo: {}, hidden: { dish: [], event: [] } };
+let state = { items: [], menu: {}, events: [], history: {}, lists: [], profiles: [], feeds: [], ext: [], feedInfo: {}, hidden: { dish: [], event: [] } };
 let list = store.get("list") || "butikk";      // valgt liste i Lister-fanen
 let hList = store.get("hlist") || "butikk";    // valgt liste på startskjermen (butikk/oda)
 let view = "home"; // appen åpner alltid på startskjermen
@@ -90,6 +90,7 @@ function start(c) {
   render();
   connect();
   setTimeout(() => pushSync(), 0);
+  renderMe();
 }
 
 // ---------- Synk (WebSocket) ----------
@@ -106,7 +107,7 @@ function connect() {
   ws.onopen = () => {
     retry = 0;
     setConn("on");
-    ws.send(JSON.stringify({ t: "hello", device: deviceId }));
+    ws.send(JSON.stringify({ t: "hello", device: deviceId, profile: me() || "" }));
     ws.send(JSON.stringify({ t: "feedRefresh" }));
     for (const m of queue) ws.send(JSON.stringify(m));
     queue = [];
@@ -121,7 +122,10 @@ function connect() {
       store.set("state:" + code, JSON.stringify(state));
       render();
       fetchWeather();
+      renderMe();
+      askProfileOnce();
       if ($("#settings").open) { renderFeeds(); renderPlace(); }
+      if ($("#profiles").open && !$("#profView").hidden) renderProfiles();
     }
   };
   ws.onclose = () => {
@@ -283,7 +287,8 @@ function itemEl(it) {
 }
 
 const BUILTIN = [{ id: "butikk", name: "I butikk" }, { id: "oda", name: "Oda" }];
-const allLists = () => [...BUILTIN, ...(state.lists || [])];
+// Lister som vises: felles lister + private lister for profilen som er valgt på denne enheten.
+const allLists = () => [...BUILTIN, ...(state.lists || []).filter((l) => !l.owner || l.owner === me())];
 const isShopping = (l) => l === "butikk" || l === "oda";
 const listName = (l) => allLists().find((x) => x.id === l)?.name || "Listen";
 
@@ -295,7 +300,8 @@ function renderList() {
     b.className = l.id === list ? "active" : "";
     const n = state.items.filter((i) => i.list === l.id && !i.done).length;
     b.textContent = l.name;
-    if (n) { const c = document.createElement("span"); c.className = "count"; c.textContent = ` (${n})`; b.append(c); }
+    if (l.owner) b.prepend(avatarImg(profileById(l.owner), "Privat liste"));
+    if (n) { const c = document.createElement("span"); c.className = "count"; c.textContent = `(${n})`; b.append(c); }
     b.onclick = () => { list = l.id; store.set("list", list); renderList(); };
     return b;
   });
@@ -317,6 +323,10 @@ function renderList() {
   $("#empty").hidden = mine.length > 0;
   $("#odaLink").hidden = list !== "oda";
   $("#listTools").hidden = isShopping(list);
+  const cur = (state.lists || []).find((x) => x.id === list);
+  const meP = profileById(me());
+  $("#privList").hidden = !cur || (!cur.owner && !meP);
+  $("#privList").textContent = cur?.owner ? "Del med familien" : meP ? `Gjør privat for ${meP.name}` : "";
   $("#addInput").placeholder = list === "butikk" ? "Legg til vare…" : `Legg til på ${listName(list)}…`;
   listAdder.refresh();
 }
@@ -333,6 +343,15 @@ function newList() {
   $("#addInput").focus();
 }
 
+$("#privList").onclick = () => {
+  const l = state.lists.find((x) => x.id === list);
+  if (!l) return;
+  const owner = l.owner ? null : me();
+  if (owner) l.owner = owner; else delete l.owner;
+  send({ t: "listOwner", id: l.id, owner });
+  toast(owner ? `«${l.name}» vises nå bare for ${profileById(owner).name}` : `«${l.name}» deles nå med hele familien`);
+  renderList();
+};
 $("#renameList").onclick = () => {
   const l = state.lists.find((x) => x.id === list);
   const name = l && prompt("Nytt navn på listen", l.name)?.trim();
@@ -1746,6 +1765,137 @@ function setPlace(place) {
 }
 setInterval(() => fetchWeather(), 15 * 60e3);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) fetchWeather(); });
+
+
+// ---------- Profiler («Hvem er du?») ----------
+// Ingen innlogging: hver enhet velger selv hvilken profil den bruker. Valget lagres bare her.
+const me = () => { const id = store.get("profile:" + code); return (state.profiles || []).some((p) => p.id === id) ? id : null; };
+const profileById = (id) => (state.profiles || []).find((p) => p.id === id) || null;
+const randSeed = () => Math.random().toString(36).slice(2, 10);
+function avatarImg(p, alt = "") {
+  const img = document.createElement("img");
+  img.className = "avatar";
+  img.alt = alt || p?.name || "";
+  img.decoding = "async";
+  if (p?.seed) img.src = `/api/avatar/${p.seed}.svg`;
+  return img;
+}
+function setMe(id) {
+  if (id) store.set("profile:" + code, id); else store.del("profile:" + code);
+  store.set("profileAsked:" + code, "1");
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "hello", device: deviceId, profile: id || "" }));
+  renderMe();
+  render();
+}
+function renderMe() {
+  const p = profileById(me());
+  const b = $("#meBtn");
+  b.replaceChildren();
+  if (p) { b.append(avatarImg(p)); b.setAttribute("aria-label", `Profil: ${p.name}`); }
+  else { b.innerHTML = icon("busts-in-silhouette"); b.setAttribute("aria-label", "Velg profil"); }
+}
+let profEditing = false, profEditId = null, profSeed = null;
+function renderProfiles() {
+  $("#profView").hidden = false;
+  $("#profForm").hidden = true;
+  $("#profHead").textContent = profEditing ? "Rediger profiler" : "Hvem er du?";
+  $("#profEditMode").textContent = profEditing ? "Ferdig med å redigere" : "Rediger";
+  $("#profEditMode").hidden = !(state.profiles || []).length;
+  $("#profNone").hidden = profEditing || !me();
+  const list = $("#profList");
+  list.classList.toggle("editing", profEditing);
+  const items = (state.profiles || []).map((p) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    if (p.id === me() && !profEditing) b.className = "on";
+    const name = document.createElement("span");
+    name.textContent = p.name;
+    b.append(avatarImg(p), name);
+    b.onclick = () => (profEditing ? openProfForm(p) : (setMe(p.id), $("#profiles").close()));
+    li.append(b);
+    return li;
+  });
+  if ((state.profiles || []).length < 12) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "add-prof";
+    b.innerHTML = `<span class="plus">${icon("plus")}</span><span>Ny profil</span>`;
+    b.onclick = () => openProfForm(null);
+    li.append(b);
+    items.push(li);
+  }
+  list.replaceChildren(...items);
+}
+function renderSeeds(keep) {
+  const seeds = keep ? [keep, ...Array.from({ length: 7 }, randSeed)] : Array.from({ length: 8 }, randSeed);
+  if (!profSeed || !seeds.includes(profSeed)) profSeed = seeds[0];
+  $("#profSeeds").replaceChildren(...seeds.map((s) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = s === profSeed ? "on" : "";
+    b.append(avatarImg({ seed: s }, "Profilbilde"));
+    b.onclick = () => { profSeed = s; $("#profSeeds").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); };
+    return b;
+  }));
+}
+function openProfForm(p) {
+  profEditId = p?.id || null;
+  profSeed = p?.seed || null;
+  $("#profView").hidden = true;
+  $("#profForm").hidden = false;
+  $("#profHead").textContent = p ? "Rediger profil" : "Ny profil";
+  $("#profName").value = p?.name || "";
+  $("#profDel").hidden = !p;
+  renderSeeds(p?.seed);
+  setTimeout(() => $("#profName").focus(), 50);
+}
+function openProfiles() {
+  profEditing = false;
+  renderProfiles();
+  if (!$("#profiles").open) $("#profiles").showModal();
+}
+$("#meBtn").onclick = openProfiles;
+$("#profEditMode").onclick = () => { profEditing = !profEditing; renderProfiles(); };
+$("#profNone").onclick = () => { setMe(null); $("#profiles").close(); };
+$("#profMore").onclick = () => renderSeeds(profSeed);
+$("#profCancel").onclick = () => renderProfiles();
+$("#profSave").onclick = () => {
+  const name = $("#profName").value.trim();
+  if (!name) { toast("Skriv et navn"); $("#profName").focus(); return; }
+  state.profiles ||= [];
+  if (profEditId) {
+    const p = profileById(profEditId);
+    Object.assign(p, { name, seed: profSeed });
+    send({ t: "profileEdit", id: p.id, name, seed: profSeed });
+  } else {
+    const id = "p-" + crypto.randomUUID().slice(0, 13);
+    state.profiles.push({ id, name, seed: profSeed });
+    send({ t: "profileAdd", id, name, seed: profSeed });
+    if (!me()) setMe(id); // første profil på enheten blir valgt
+  }
+  renderMe();
+  render();
+  renderProfiles();
+};
+$("#profDel").onclick = () => {
+  const p = profileById(profEditId);
+  if (!p || !confirm(`Slette profilen «${p.name}»? Private lister for ${p.name} blir felles for familien – ingenting slettes.`)) return;
+  state.profiles = state.profiles.filter((x) => x.id !== p.id);
+  for (const l of state.lists || []) if (l.owner === p.id) delete l.owner;
+  send({ t: "profileDel", id: p.id });
+  if (store.get("profile:" + code) === p.id) setMe(null);
+  renderMe();
+  render();
+  renderProfiles();
+};
+// Første gang familien har profiler og enheten ikke har valgt: spør én gang.
+function askProfileOnce() {
+  if (!code || me() || store.get("profileAsked:" + code) || !(state.profiles || []).length || document.querySelector("dialog[open]")) return;
+  store.set("profileAsked:" + code, "1");
+  openProfiles();
+}
 
 // ---------- Oppstart ----------
 const params = new URLSearchParams(location.search);
