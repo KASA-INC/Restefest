@@ -35,6 +35,14 @@ a { color: var(--accent); }
 .add { display: flex; gap: 8px; }
 .add input { flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); outline: none; }
 .add input:focus { border-color: var(--accent); background: var(--surface); }
+/* Tagg-felt: restene står som merker inne i feltet, skrivefeltet fyller resten av linjen */
+.tagbox { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 6px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); cursor: text; }
+.tagbox:focus-within { border-color: var(--accent); background: var(--surface); }
+.tagbox .have { display: contents; }
+.tagbox input { flex: 1 1 120px; min-height: 32px; padding: 2px 6px; border: 0; background: none; }
+.tagbox input:focus { background: none; }
+.tagbox .have button { padding: 5px 10px; }
+.add .primary { align-self: flex-start; }
 .primary { min-width: 44px; min-height: 44px; border: 0; border-radius: var(--r-md); background: var(--accent); color: var(--accent-ink); font-size: 24px; font-weight: 500; }
 
 .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }

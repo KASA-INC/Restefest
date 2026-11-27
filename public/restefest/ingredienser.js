@@ -17,7 +17,7 @@ const brandRe = new RegExp(`(?<![\\p{L}])(?:${BRANDS.map((b) => b.replace(/[.*+?
 const DROP_AFTER = /\s(til|for|i|på|uten|med|etter|som|eller|à|á|a)\s.*$/; // «olje til steking», «i terninger», «eller …»
 const IRREGULAR = {
   gulrøtter: "gulrot", gulrøtt: "gulrot", røtter: "rot", poteter: "potet", tomater: "tomat", epler: "eple", pærer: "pære",
-  bananer: "banan", sitroner: "sitron", limer: "lime", paprikaer: "paprika", champignoner: "sjampinjong", champignon: "sjampinjong", sjampinjonger: "sjampinjong", løker: "løk",
+  pastinakker: "pastinakk", bananer: "banan", sitroner: "sitron", limer: "lime", paprikaer: "paprika", champignoner: "sjampinjong", champignon: "sjampinjong", sjampinjonger: "sjampinjong", løker: "løk",
   agurker: "agurk", squasher: "squash", avokadoer: "avokado", reker: "reke", bønner: "bønne", erter: "ert", linser: "linse",
   nøtter: "nøtt", mandler: "mandel", oliven: "oliven", tortillalefser: "tortillalefse", tortillaer: "tortilla", pølser: "pølse",
   egget: "egg", eggene: "egg", eggeplommer: "eggeplomme", eggehviter: "eggehvite", skiver: "skive", fileter: "filet",

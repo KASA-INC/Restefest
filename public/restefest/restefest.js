@@ -144,18 +144,29 @@ function save() {
   render();
 }
 
-function add(text) {
-  for (const part of text.split(/[,;]+/)) {
+// Legger til én eller flere rester (skilt med komma, semikolon eller linjeskift).
+function add(text, keepFocus = true) {
+  for (const part of text.split(/[,;\n]+/)) {
     const q = normQuery(part);
     if (q && !have.includes(q)) have.push(q);
   }
   $("#addInput").value = "";
   $("#suggest").replaceChildren();
   save();
+  if (keepFocus) $("#addInput").focus();
 }
 
 $("#addForm").onsubmit = (e) => { e.preventDefault(); if ($("#addInput").value.trim()) add($("#addInput").value); };
 $("#addInput").oninput = () => {
+  // Tagg-metode: komma (eller semikolon) gjør det som står foran til et merke med en gang
+  if (/^\s+$/.test($("#addInput").value)) $("#addInput").value = ""; // mellomrom etter komma
+  const v = $("#addInput").value;
+  if (/[,;]/.test(v)) {
+    const parts = v.split(/[,;]/);
+    const rest = parts.pop();
+    add(parts.join(","));
+    $("#addInput").value = rest.trimStart();
+  }
   const q = normQuery($("#addInput").value);
   const list = q.length >= 2 ? vocab.filter((k) => k.startsWith(q) && !have.includes(k)).slice(0, 8) : [];
   $("#suggest").replaceChildren(...list.map((k) => {
@@ -167,6 +178,15 @@ $("#addInput").oninput = () => {
     return li;
   }));
 };
+$("#addInput").onkeydown = (e) => {
+  // Backspace i tomt felt fjerner det siste merket
+  if (e.key === "Backspace" && !e.target.value && have.length) { have.pop(); save(); }
+};
+$("#addInput").onpaste = (e) => {
+  const t = e.clipboardData?.getData("text") || "";
+  if (/[,;\n]/.test(t)) { e.preventDefault(); add(t); }
+};
+$("#tagbox").onclick = (e) => { if (e.target === e.currentTarget) $("#addInput").focus(); };
 document.querySelectorAll(".ex").forEach((b) => (b.onclick = () => add(b.textContent)));
 $("#basics").onchange = (e) => { useBasics = e.target.checked; store.set("basics", useBasics); shown = PAGE; render(); };
 document.querySelectorAll("[data-miss]").forEach((b) => (b.onclick = () => { maxMiss = Number(b.dataset.miss); store.set("miss", maxMiss); shown = PAGE; render(); }));

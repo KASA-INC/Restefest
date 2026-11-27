@@ -21,11 +21,13 @@
 
     <section class="card">
       <form id="addForm" class="add" autocomplete="off">
-        <input id="addInput" placeholder="F.eks. kylling, ris, paprika …" enterkeyhint="done" aria-label="Legg til en rest">
+        <div class="tagbox" id="tagbox">
+          <ul id="have" class="chips have" aria-label="Restene dine"></ul>
+          <input id="addInput" placeholder="F.eks. kylling, ris, paprika …" enterkeyhint="done" aria-label="Legg til en rest – trykk Enter eller komma">
+        </div>
         <button class="primary" aria-label="Legg til">+</button>
       </form>
       <ul id="suggest" class="chips suggest" aria-label="Forslag"></ul>
-      <ul id="have" class="chips have" aria-label="Restene dine"></ul>
       <p id="haveEmpty" class="muted small">Prøv for eksempel:
         <button type="button" class="ex">kylling</button> <button type="button" class="ex">ris</button>
         <button type="button" class="ex">egg</button> <button type="button" class="ex">potet</button>
