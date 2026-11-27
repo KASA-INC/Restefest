@@ -88,6 +88,8 @@ Jost brukes overalt. Alle mål i `public/style.css` kommer fra variabler øverst
 
 Trengs en ny verdi, vurder først om den kan bli et av trinnene.
 
+**Fargetemaer** velges per enhet under Innstillinger → Farger: *Terrakotta* (standard) og *Pion* (Blackberry, Meadow Flower, Pediment, Kurobeni, Copper Moon og Moscow Midnight). Begge har lys og mørk variant. Et tema er bare et sett fargevariabler under `:root[data-theme="…"]` i `style.css`; et lite skript i `<head>` setter det før siden tegnes, så det ikke blinker.
+
 ## Logo og appikon
 
 Uka-logoen (ordet UKA) ligger i `public/logo.svg`, og symbolet (haken) i `public/symbol.svg`. Begge er renset for Illustrator-data. Ordmerket brukes i appikonene – `icon-any-192/512.png` med Mac-formet avrundet flis og gjennomsiktig marg (Mac/Windows), `icon-192/512.png` som «maskable» fulle kvadrater (Android) og `icon-180.png` for iPhone –, i toppfeltet, på velkomstskjermen og i delingsbildet (`og-image.png`). Symbolet brukes der ordmerket blir for smått: faviconet (`icon.svg` og `favicon-32.png`) og varselikonet i statuslinjen på Android (`badge-96.png`).

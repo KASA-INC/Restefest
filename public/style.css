@@ -79,6 +79,41 @@
   }
 }
 
+/* Fargetema «Pion»: Blackberry #421b2e, Meadow Flower #907181, Pediment #d3ccc6,
+   Kurobeni #261922, Copper Moon #bf9e7f, Moscow Midnight #2b4850. Velges per enhet i innstillingene. */
+:root[data-theme="pion"] {
+  --bg: #ebe5e0;            /* Pediment, lysnet */
+  --surface: #f8f5f2;
+  --text: #261922;          /* Kurobeni */
+  --muted: #6f5a65;         /* Meadow Flower, mørknet for lesbarhet */
+  --line: #ddd3cf;
+  --accent: #5a2440;        /* Blackberry, litt lysere enn teksten */
+  --accent-ink: #f8f5f2;
+  --accent-soft: #e7dbe1;   /* Meadow Flower, lys */
+  --danger: #a3304a;
+  --honey: #bf9e7f;         /* Copper Moon */
+  --ok: #2b4850;            /* Moscow Midnight */
+  --shadow: 0 1px 2px rgb(38 25 34 / 0.06), 0 6px 18px rgb(38 25 34 / 0.07);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="pion"] {
+    --bg: #1c1219;          /* Kurobeni, mørkere */
+    --surface: #2a1a24;
+    --text: #ece6e1;        /* Pediment */
+    --muted: #ab929f;       /* Meadow Flower */
+    --line: #3d2734;
+    --accent: #d2b394;      /* Copper Moon, lysnet */
+    --accent-ink: #261922;
+    --accent-soft: #421b2e; /* Blackberry */
+    --danger: #e98a9c;
+    --honey: #bf9e7f;
+    --ok: #6f9aa3;          /* Moscow Midnight, lysnet */
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
 /* ---------- Grunnlag ---------- */
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -414,7 +449,7 @@ dialog {
   background: var(--bg); color: var(--text);
 }
 @media (min-width: 600px) { dialog { margin: auto; border-radius: var(--r-xl); } }
-dialog::backdrop { background: rgb(45 28 18 / 0.45); }
+dialog::backdrop { background: color-mix(in srgb, var(--text) 45%, transparent); }
 .sheet { padding: var(--sp-4) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom)); display: grid; gap: 10px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; }
 .sheet-head h2 { font-size: var(--fs-xl); }
@@ -529,3 +564,10 @@ dialog::backdrop { background: rgb(45 28 18 / 0.45); }
 .pills button { display: inline-flex; align-items: center; }
 .list-tools { flex-wrap: wrap; row-gap: 0; }
 .pills .count { margin-left: 4px; }
+
+/* Fargetema-velger */
+.theme-pick { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.theme-pick button { display: grid; gap: 6px; justify-items: start; padding: 10px var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); text-align: left; font-weight: 500; }
+.theme-pick button[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.theme-pick .sw { display: flex; }
+.theme-pick .sw i { width: 18px; height: 18px; border-radius: 50%; margin-right: -4px; box-shadow: 0 0 0 2px var(--surface); }

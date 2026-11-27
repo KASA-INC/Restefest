@@ -20,6 +20,7 @@
   <meta name="twitter:title" content="Uka – familiens uke på ett sted">
   <meta name="twitter:description" content="Handleliste, ukemeny og kalender som hele familien deler – synkronisert med en gang.">
   <meta name="twitter:image" content="/og-image.png">
+  <script>try { const t = localStorage.getItem("theme"); if (t && t !== "uka") document.documentElement.dataset.theme = t; } catch {}</script>
   <meta name="theme-color" content="#f6efe4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1d1712" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -407,6 +408,13 @@
           </div>
         </div>
       </div>
+
+      <h3>Farger</h3>
+      <div class="theme-pick" role="group" aria-label="Fargetema">
+        <button type="button" data-theme-pick="uka"><span class="sw"><i style="background:#b5562f"></i><i style="background:#c9922f"></i><i style="background:#3a2a20"></i><i style="background:#f6efe4"></i></span>Terrakotta</button>
+        <button type="button" data-theme-pick="pion"><span class="sw"><i style="background:#421b2e"></i><i style="background:#907181"></i><i style="background:#bf9e7f"></i><i style="background:#2b4850"></i></span>Pion</button>
+      </div>
+      <p class="muted small">Gjelder bare denne enheten.</p>
 
       <h3>Helligdager og merkedager</h3>
       <label class="check-row"><input type="checkbox" id="showHolidays"> Vis røde dager og merkedager (påske, advent, sankthans …) i kalenderen</label>
