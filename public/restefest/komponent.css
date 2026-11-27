@@ -29,8 +29,29 @@
 
 .rf-seg.rf-mode { width: 100%; margin-bottom: 12px; }
 .rf-mode button { padding: 7px 6px; font-size: 15px; }
-.rf-cats button { background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 4px 12px; }
-.rf-cats button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+/* «Finn oppskrift»: type rett (rulles sidelengs), hovedingrediens, tid og sortering */
+.rf-scroll { overflow-x: auto; margin: 0 -14px; padding: 0 14px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.rf-scroll::-webkit-scrollbar { display: none; }
+.rf-types { flex-wrap: nowrap; }
+.rf-types li { flex: none; }
+.rf-types button, .rf-mains button { background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 4px 11px; white-space: nowrap; }
+.rf-types button.on, .rf-mains button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.rf-n { margin-left: 6px; font-size: 12px; font-weight: 400; opacity: .65; }
+.rf-mains[hidden] { display: none; }
+.rf-filters { display: flex; gap: 8px; align-items: center; }
+.rf-seg.rf-time { width: auto; flex: 1 1 auto; min-width: 0; }
+.rf-seg.rf-time button { font-size: 13px; padding: 5px 4px; white-space: nowrap; }
+.rf .rf-sort { width: auto; max-width: 40%; flex: 0 0 auto; min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+/* Rutenett med bilder */
+.rf-results.rf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 620px) { .rf-results.rf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.rf-tile { display: flex; flex-direction: column; }
+.rf-tile .rf-rec-link { display: block; padding: 0; flex: 1; }
+.rf-rec.rf-tile img, .rf-rec.rf-tile .rf-noimg { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 0; }
+.rf-tile .rf-rec-link > div:last-child { padding: 8px 10px 6px; }
+.rf-rec.rf-tile h3 { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rf-tile .rf-meta { margin: 0; font-size: 12.5px; }
+.rf-tile .rf-menu { width: calc(100% - 16px); margin: 0 8px 8px; min-height: 32px; font-size: 13px; padding: 2px 8px; }
 .rf-add input[type="search"] { -webkit-appearance: none; appearance: none; }
 .rf-opts { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
 .rf-check { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; }
