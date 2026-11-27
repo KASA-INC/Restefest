@@ -88,7 +88,7 @@ Jost brukes overalt. Alle mål i `public/style.css` kommer fra variabler øverst
 
 Trengs en ny verdi, vurder først om den kan bli et av trinnene.
 
-**Fargetemaer** velges per enhet under Innstillinger → Farger: *Terrakotta* (standard) og *Pion* (Blackberry, Meadow Flower, Pediment, Kurobeni, Copper Moon og Moscow Midnight). Begge har lys og mørk variant. Et tema er bare et sett fargevariabler under `:root[data-theme="…"]` i `style.css`; et lite skript i `<head>` setter det før siden tegnes, så det ikke blinker.
+**Fargetemaer** velges per enhet under Innstillinger → Farger: *Terrakotta* (standard) og *Pion* (Blackberry, Meadow Flower, Pediment, Kurobeni, Copper Moon og Moscow Midnight – petrol som aksent i lys variant, Copper Moon i mørk). Begge har lys og mørk variant. Et tema er bare et sett fargevariabler under `:root[data-theme="…"]` i `style.css`; et lite skript i `<head>` setter det før siden tegnes, så det ikke blinker.
 
 ## Logo og appikon
 
