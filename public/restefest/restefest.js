@@ -9,7 +9,8 @@
 //   valg.importLink(url)                     → leser inn en oppskrift fra en lenke → { ok, recipe, error }
 //   valg.shopping                            → { lists(), onList(liste) → Set, add(tekster, { title, url }, liste) } (bare i Uka)
 //   valg.toast(tekst)                        → kort beskjed
-import { matches, normQuery, isBasic, DEFAULT_BASICS } from "./ingredienser.js";
+import { matches, normQuery, isBasic, keysFromLine, DEFAULT_BASICS } from "./ingredienser.js";
+import { shardFile, shoppingText, bareName } from "./mengde.js";
 import { TYPES, MAINS, HAS_MAIN, classify } from "./kategorier.js";
 
 const PAGE = 40;
@@ -245,54 +246,91 @@ export function mountRestefest(root, opts = {}) {
     return sel;
   }
 
-  // «+ Handleliste»: velg hvilke ingredienser som skal på listen. Basisvarer, rester du har og det som
-  // allerede står på listen er krysset bort på forhånd.
+  // Mengder og porsjoner per oppskrift ligger i mengder/NN.json (hentes når de trengs).
+  const shardCache = new Map();
+  async function amountsFor(url) {
+    const f = shardFile(url);
+    if (!shardCache.has(f)) shardCache.set(f, fetch(`${opts.amountsBase || "/restefest/mengder/"}${f}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+    return (await shardCache.get(f))[url] || null; // [porsjoner, linjer]
+  }
+
+  // «+ Handleliste»: velg porsjoner og hvilke ingredienser som skal på listen. Basisvarer, rester du har og det
+  // som allerede står på listen er krysset bort på forhånd.
   const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
-  function shopDialog(r) {
+  async function shopDialog(r, btn) {
     const [title, url] = r;
     const sh = opts.shopping;
     const lists = sh.lists();
     let l = store.get("shopList", lists[0].id);
     if (!lists.some((x) => x.id === l)) l = lists[0].id;
+    if (btn) btn.disabled = true;
+    const am = await amountsFor(url);
+    if (btn) btn.disabled = false;
+    const lines = am?.[1] || null;
+    const base = am?.[0] || 0; // porsjoner i oppskriften (0 = ikke oppgitt)
+    let portions = store.get("portions", 4);
     const dlg = document.createElement("dialog");
     dlg.className = "rf-dlg";
     dlg.innerHTML = `<form method="dialog">
       <h2>Legg på handlelisten</h2>
       <p class="rf-muted rf-small rf-dlg-sub"></p>
-      <ul class="rf-ings"></ul>
+      <div class="rf-portions" hidden>
+        <span>Porsjoner</span>
+        <div class="rf-stepper"><button type="button" class="rf-minus" aria-label="Færre porsjoner">−</button><output class="rf-pn"></output><button type="button" class="rf-plus2" aria-label="Flere porsjoner">+</button></div>
+      </div>
+      <p class="rf-muted rf-small rf-pnote"></p>
+      <ul class="rf-ings" tabindex="-1"></ul>
       <div class="rf-seg rf-dlg-lists" role="group" aria-label="Hvilken liste"></div>
       <div class="rf-dlg-btns"><button type="button" class="rf-cancel">Avbryt</button><button class="rf-ok"></button></div>
     </form>`;
     dlg.querySelector(".rf-dlg-sub").textContent = title;
     const ul = dlg.querySelector(".rf-ings");
     const okBtn = dlg.querySelector(".rf-ok");
+    const note = dlg.querySelector(".rf-pnote");
+    dlg.querySelector(".rf-portions").hidden = !lines;
     const count = () => {
       const n = ul.querySelectorAll("input:checked:not(:disabled)").length;
       okBtn.textContent = n ? `Legg til ${n} ${n === 1 ? "vare" : "varer"}` : "Ingen valgt";
       okBtn.disabled = !n;
     };
+    // Hver rad: varen slik den havner på listen, og nøklene som brukes for basisvarer/rester.
+    const rows = lines
+      ? lines.map((line) => ({ line, keys: keysFromLine(line) })).filter((x) => x.line.trim())
+      : [...new Set(r[6])].map((k) => ({ line: null, keys: [k], text: cap(k) }));
+    const checked = new Map(); // husk egne valg når porsjonene endres
     const fill = () => {
-      const on = sh.onList(l);
-      ul.replaceChildren(...[...new Set(r[6])].map((k) => {
-        const text = cap(k);
+      const on = new Set([...sh.onList(l)].map(bareName));
+      const factor = lines ? portions / (base || 4) : 1;
+      dlg.querySelector(".rf-pn").textContent = portions;
+      note.textContent = !lines ? "Oppskriften oppgir ikke mengder, så bare varene legges på listen."
+        : base ? (portions === base ? `Oppskriften er for ${base} porsjoner.` : `Oppskriften er for ${base} porsjoner – mengdene er regnet om.`)
+        : "Oppskriften oppgir ikke antall porsjoner – regner med at den er for 4.";
+      ul.replaceChildren(...rows.map((row, i) => {
+        const text = row.line ? shoppingText(row.line, factor) : row.text;
         const li = document.createElement("li");
         const lab = document.createElement("label");
         const cb = document.createElement("input");
         cb.type = "checkbox"; cb.value = text;
         let why = "";
-        if (on.has(text.toLowerCase())) { why = "står på listen"; cb.disabled = true; }
-        else if (have.some((q) => matches(q, k))) why = "har rest";
-        else if (isBasic(k, basics)) why = "basisvare";
-        cb.checked = !why;
-        cb.onchange = count;
+        if (on.has(bareName(text))) { why = "står på listen"; cb.disabled = true; }
+        else if (row.keys.length && row.keys.some((k) => have.some((q) => matches(q, k)))) why = "har rest";
+        else if (row.keys.length && row.keys.every((k) => isBasic(k, basics))) why = "basisvare";
+        cb.checked = checked.has(i) ? checked.get(i) : !why;
+        if (cb.disabled) cb.checked = false;
+        cb.onchange = () => { checked.set(i, cb.checked); count(); };
         const span = document.createElement("span"); span.textContent = text;
         lab.append(cb, span);
         if (why) lab.append(Object.assign(document.createElement("small"), { textContent: why }));
         li.append(lab);
         return li;
       }));
+      dlg.querySelector(".rf-minus").disabled = portions <= 1;
+      dlg.querySelector(".rf-plus2").disabled = portions >= 20;
       count();
     };
+    const step = (d) => { portions = Math.min(20, Math.max(1, portions + d)); store.set("portions", portions); fill(); };
+    dlg.querySelector(".rf-minus").onclick = () => step(-1);
+    dlg.querySelector(".rf-plus2").onclick = () => step(1);
     const seg = dlg.querySelector(".rf-dlg-lists");
     seg.hidden = lists.length < 2;
     for (const x of lists) {
@@ -308,7 +346,8 @@ export function mountRestefest(root, opts = {}) {
       e.preventDefault();
       const texts = [...ul.querySelectorAll("input:checked:not(:disabled)")].map((c) => c.value);
       dlg.close();
-      if (texts.length) sh.add(texts, { title, url }, l);
+      const label = lines ? `${title} (${portions} pors.)` : title;
+      if (texts.length) sh.add(texts, { title: label, url }, l);
     };
     dlg.addEventListener("close", () => dlg.remove());
     dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
@@ -349,7 +388,7 @@ export function mountRestefest(root, opts = {}) {
     li.append(a);
     const pick = menuPicker(title, url);
     const shop = opts.shopping && (r[6] || []).length ? Object.assign(document.createElement("button"), { type: "button", className: "rf-shop", textContent: "+ Handleliste" }) : null;
-    if (shop) { shop.setAttribute("aria-label", `Legg ingrediensene til «${title}» på handlelisten`); shop.onclick = () => shopDialog(r); }
+    if (shop) { shop.setAttribute("aria-label", `Legg ingrediensene til «${title}» på handlelisten`); shop.onclick = () => shopDialog(r, shop); }
     if (pick || shop) {
       const row = document.createElement("div");
       row.className = "rf-actions";

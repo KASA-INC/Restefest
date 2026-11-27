@@ -105,6 +105,14 @@
 .rf-dlg h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .rf-dlg-sub { margin: -6px 0 0; }
 .rf-ings:focus { outline: none; }
+.rf-portions { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 600; }
+.rf-portions[hidden] { display: none; }
+.rf-stepper { display: flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.rf-stepper button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--surface); color: var(--accent); font: inherit; font-size: 20px; line-height: 1; cursor: pointer; box-shadow: var(--shadow); }
+.rf-stepper button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rf-stepper button:disabled { opacity: .35; cursor: default; box-shadow: none; }
+.rf-stepper output { min-width: 28px; text-align: center; font-size: 17px; font-variant-numeric: tabular-nums; }
+.rf-pnote { margin: -4px 0 0; }
 .rf-ings { list-style: none; margin: 0; padding: 0; overflow-y: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .rf-ings li + li { border-top: 1px solid var(--line); }
 .rf-ings label { display: flex; align-items: center; gap: 10px; padding: 8px 2px; font-size: 15px; cursor: pointer; }

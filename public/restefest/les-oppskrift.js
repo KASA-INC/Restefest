@@ -15,6 +15,7 @@ export function recipeFrom(html, url) {
       image: typeof img === "string" ? img : img?.url || img?.contentUrl || "",
       time: r.totalTime || r.cookTime || "",
       category: [].concat(r.recipeCategory || []).map(String),
+      yield: portions(r.recipeYield),
     };
   }
   return null;
@@ -26,4 +27,13 @@ export function minutes(iso) {
   if (!m) return 0;
   const t = (+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0);
   return t > 0 && t < 2880 ? t : 0;
+}
+
+// recipeYield («4 porsjoner», «Antall personer: 4», 4, ["4", "4 porsjoner"]) → antall porsjoner, eller 0
+export function portions(y) {
+  for (const v of [].concat(y ?? [])) {
+    const m = /(\d+)/.exec(String(v));
+    if (m && +m[1] > 0 && +m[1] <= 100) return +m[1];
+  }
+  return 0;
 }

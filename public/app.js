@@ -378,8 +378,9 @@ function groupedItems(todo, l) {
 
 // Ingredienser fra en oppskrift (Restefest): legges samlet på listen, merket med retten.
 function addRecipeItems(texts, group, l = "butikk") {
-  const onList = new Set(state.items.filter((i) => i.list === l && !i.done).map((i) => i.text.toLowerCase()));
-  const fresh = texts.map((t) => t.trim()).filter((t) => t && !onList.has(t.toLowerCase()));
+  const bare = (t) => t.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase(); // «Kjøttdeig (800 g)» → «kjøttdeig»
+  const onList = new Set(state.items.filter((i) => i.list === l && !i.done).map((i) => bare(i.text)));
+  const fresh = texts.map((t) => t.trim()).filter((t) => t && !onList.has(bare(t)));
   if (!fresh.length) { toast("Alt står allerede på listen"); return 0; }
   send({ t: "addMany", list: l, group, texts: fresh.map((t) => state.history?.[t.toLowerCase()]?.text || t) });
   toast(`${fresh.length} ${fresh.length === 1 ? "vare" : "varer"} til «${group.title}» lagt på ${l === "butikk" ? "handlelisten" : listName(l) + "-listen"}`, "Vis", () => { list = l; store.set("list", list); renderList(); showView("list"); });
