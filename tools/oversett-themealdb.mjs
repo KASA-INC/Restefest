@@ -1,6 +1,6 @@
 // Oversetter TheMealDB-retter til norsk med Claude, én rett om gangen, og lagrer dem i
 // public/restefest/themealdb-no.json. Kan avbrytes og kjøres igjen: ferdige retter hoppes over.
-// Krever ANTHROPIC_API_KEY. Koster noen øre per rett (engangskostnad).
+// Krever UKA_ANTHROPIC_KEY (eller ANTHROPIC_API_KEY). Koster noen øre per rett (engangskostnad).
 //
 //   node tools/oversett-themealdb.mjs <themealdb-raw.json> [maks antall]
 import fs from "node:fs";
@@ -11,7 +11,10 @@ const MAX = Number(process.argv[3] || 1e9);
 const OUT = new URL("../public/restefest/themealdb-no.json", import.meta.url);
 const CONCURRENCY = 4;
 
-const client = new Anthropic(); // leser ANTHROPIC_API_KEY
+// Nøkkelen: UKA_ANTHROPIC_KEY (anbefalt i skymiljøer, der ANTHROPIC_API_KEY er reservert for Claude Code) eller ANTHROPIC_API_KEY.
+const apiKey = process.env.UKA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
+if (!apiKey) { console.error("Mangler API-nøkkel: sett miljøvariabelen UKA_ANTHROPIC_KEY"); process.exit(1); }
+const client = new Anthropic({ apiKey });
 const raw = JSON.parse(fs.readFileSync(RAW, "utf8"));
 const done = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, "utf8")) : { source: "TheMealDB", meals: {} };
 
