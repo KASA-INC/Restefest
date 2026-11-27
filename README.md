@@ -70,7 +70,7 @@ Hver familie kan legge til profiler (maks 12) under profilknappen øverst til h�
 - **Private lister:** en egen liste kan gjøres «privat» for en profil. Da vises den bare på enheter som har valgt den profilen. Det er ment for ting som ikke er interessante for de andre, ikke for hemmeligheter. Slettes profilen, blir listene felles.
 - **Navn i varsler:** «Ida la til på handlelisten: Melk og Egg».
 
-Profilbildene er DiceBears «Loops» (CC0) i appens farger. De hentes via `/api/avatar/<frø>.svg`, som mellomlagres. Frøet er tilfeldig, så navn sendes aldri til DiceBear.
+Profilbildene er DiceBears «Lorelei» av Lisa Wischofsky (CC0) på lyse, varme bakgrunner. De hentes via `/api/avatar/lorelei/<frø>.svg`, som mellomlagres. Frøet er tilfeldig, så navn sendes aldri til DiceBear.
 
 ## Vær
 

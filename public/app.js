@@ -1777,7 +1777,7 @@ function avatarImg(p, alt = "") {
   img.className = "avatar";
   img.alt = alt || p?.name || "";
   img.decoding = "async";
-  if (p?.seed) img.src = `/api/avatar/${p.seed}.svg`;
+  if (p?.seed) img.src = `/api/avatar/lorelei/${p.seed}.svg`;
   return img;
 }
 function setMe(id) {

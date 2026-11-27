@@ -29,8 +29,10 @@ const DEVICE_RE = /^[a-z0-9-]{8,40}$/;
 const PROFILE_RE = /^p-[a-z0-9-]{4,40}$/;
 const SEED_RE = /^[a-z0-9]{4,24}$/;
 const MAX_PROFILES = 12;
-// Profilbilder: DiceBear «Loops» (CC0) i appens farger. Frøet er tilfeldig – navn sendes aldri til DiceBear.
-const AVATAR_COLORS = "b5562f,c9922f,7f9461,3a2a20,8c7666,d9774b";
+// Profilbilder: DiceBear «Lorelei» av Lisa Wischofsky (CC0) på lyse, varme bakgrunner fra appens palett.
+// Frøet er tilfeldig – navn sendes aldri til DiceBear.
+const AVATAR_STYLE = "lorelei";
+const AVATAR_COLORS = "f6e2d3,efd9bf,e9d2bd,dde3cf,f3dcae,ecd0c4";
 
 const normCode = (s) => decodeURIComponent(s).normalize("NFC").trim().toLowerCase();
 
@@ -49,13 +51,13 @@ export default {
         return new Response(JSON.stringify({ days: [] }), { status: 502, headers: { "Content-Type": "application/json" } });
       }
     }
-    // Profilbilde: /api/avatar/<frø>.svg (mellomlagret, endres aldri)
-    if ((m = url.pathname.match(/^\/api\/avatar\/([a-z0-9]{4,24})\.svg$/))) {
+    // Profilbilde: /api/avatar/<stil>/<frø>.svg (mellomlagret, endres aldri – ny stil = ny adresse)
+    if ((m = url.pathname.match(/^\/api\/avatar\/lorelei\/([a-z0-9]{4,24})\.svg$/))) {
       const cache = caches.default;
       const key = new Request(url.origin + url.pathname);
       let res = await cache.match(key);
       if (!res) {
-        const r = await fetch(`https://api.dicebear.com/11.x/loops/svg?seed=${m[1]}&backgroundColor=${AVATAR_COLORS}`);
+        const r = await fetch(`https://api.dicebear.com/11.x/${AVATAR_STYLE}/svg?seed=${m[1]}&backgroundColor=${AVATAR_COLORS}`);
         if (!r.ok) return new Response("Fant ikke bildet", { status: 502 });
         res = new Response(await r.text(), { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=31536000, immutable" } });
         ctx.waitUntil(cache.put(key, res.clone()));
