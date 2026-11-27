@@ -174,6 +174,7 @@ function showView(v) {
   $("#view-cal").hidden = v !== "cal";
   $("#view-rest").hidden = v !== "rest";
   $("#title").textContent = { list: "Lister", rest: "Restefest", menu: "Ukemeny", cal: "Kalender" }[v] || "";
+  $("#title").hidden = v === "rest"; // Restefest har logoen sin øverst i visningen
   if (v === "rest") mountRest();
   $("#title").classList.toggle("clock", v === "home");
   $("#title").style.fontSize = "";

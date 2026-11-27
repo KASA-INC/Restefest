@@ -4,6 +4,7 @@
   --bg: #ece4e6; --surface: #faf6f7; --text: #261922; --muted: #6c5762; --line: #e0d3d9;
   --accent: #76526a; --accent-ink: #faf6f7; --accent-soft: #e6d6df;
   --shadow: 0 1px 2px rgb(66 27 46 / 0.06), 0 6px 18px rgb(66 27 46 / 0.08);
+  --rf-a: #421b2e; --rf-b: #b0577a; --rfc0: #b0577a; --rfc1: #bf9e7f; --rfc2: #907181; --rfc3: #7f8f5a; --rfc4: #c8614a;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -11,6 +12,7 @@
     --bg: #421b2e; --surface: #55273d; --text: #f1ebe6; --muted: #cdb3c1; --line: #67344d;
     --accent: #d4b3c6; --accent-ink: #2a1220; --accent-soft: #6a3550;
     --shadow: 0 1px 2px rgb(20 6 14 / 0.25), 0 6px 18px rgb(20 6 14 / 0.25);
+    --rf-a: #f1ebe6; --rf-b: #d4b3c6; --rfc0: #d4b3c6; --rfc1: #bf9e7f; --rfc2: #c98aa6; --rfc3: #a7b27e; --rfc4: #e08a6f;
     color-scheme: dark;
   }
 }
@@ -20,6 +22,7 @@ body { background: var(--bg); color: var(--text); font: 16px/1.4 "Jost", "Futura
 a { color: var(--accent); }
 [hidden] { display: none !important; }
 .wrap { max-width: 680px; margin: 0 auto; padding: calc(24px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom)); }
-.head h1 { margin: 0; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; color: var(--accent); }
+.head h1 { margin: 0; line-height: 0; }
+.rf-logo { display: block; width: min(320px, 80%); height: auto; margin-left: -4px; }
 .lead { margin: 6px 0 20px; color: var(--muted); }
 .foot { margin-top: 12px; text-align: center; color: var(--muted); font-size: 14px; }

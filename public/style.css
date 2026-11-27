@@ -536,4 +536,10 @@ dialog::backdrop { background: color-mix(in srgb, var(--text) 45%, transparent);
 .list-tools { flex-wrap: wrap; row-gap: 0; }
 .pills .count { margin-left: 4px; }
 
-.rest-lead { margin: -2px 2px 12px; }
+/* Restefest: logoen øverst i visningen, og konfettiikonet i fanelinjen (farger når fanen er valgt) */
+:root { --rf-a: #421b2e; --rf-b: #b0577a; --rfc0: #b0577a; --rfc1: #bf9e7f; --rfc2: #907181; --rfc3: #7f8f5a; --rfc4: #c8614a; }
+@media (prefers-color-scheme: dark) { :root { --rf-a: #f1ebe6; --rf-b: #d4b3c6; --rfc0: #d4b3c6; --rfc1: #bf9e7f; --rfc2: #c98aa6; --rfc3: #a7b27e; --rfc4: #e08a6f; } }
+.rest-head { margin: 0 0 2px; line-height: 0; }
+.rf-logo { display: block; width: min(240px, 66%); height: auto; margin-left: -2px; }
+.rest-lead { margin: 0 2px 12px; }
+.tabbar button.active { --rk0: var(--rfc0); --rk1: var(--rfc1); --rk2: var(--rfc2); --rk3: var(--rfc3); --rk4: var(--rfc4); }
