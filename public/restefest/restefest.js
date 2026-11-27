@@ -1,4 +1,5 @@
-// Restefest: finn oppskrifter som bruker restene dine. Søket skjer i nettleseren mot oppskriftsbasen
+// Restefest: finn oppskrifter som bruker restene dine – eller søk på vanlig måte etter navn, ingrediens eller type rett.
+// Søket skjer i nettleseren mot oppskriftsbasen
 // (oppskrifter.json) og familiens egne oppskrifter, så det er raskt og gratis.
 //
 // Brukes to steder: som fane i Uka og som egen side (/restefest/). Begge kaller mountRestefest(element, valg).
@@ -14,10 +15,24 @@ const store = {
   get: (k, d) => { try { return JSON.parse(localStorage.getItem("restefest:" + k)) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem("restefest:" + k, JSON.stringify(v)); } catch {} },
 };
+const CATS = ["Middag", "Kylling", "Fisk", "Kjøttdeig", "Vegetar", "Pasta", "Suppe", "Pizza", "Dessert", "Bakst"];
+// Små bokstaver og uten aksenter (men å, æ og ø beholdes).
+const fold = (t) => String(t || "").toLowerCase().replace(/[éèêë]/g, "e").replace(/[áàâä]/g, "a").replace(/[óòôö]/g, "o").replace(/[úùûü]/g, "u").replace(/[íìîï]/g, "i").replace(/[«»"“”()]/g, "");
 const joinList = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} og ${xs.at(-1)}`);
 
 const TEMPLATE = `
-  <section class="rf-card">
+  <div class="rf-seg rf-mode" role="tablist" aria-label="Måte å finne oppskrifter på">
+    <button type="button" role="tab" data-mode="rest">Fra rester</button><button type="button" role="tab" data-mode="search">Søk</button>
+  </div>
+
+  <section class="rf-card" data-rf="searchBox" hidden>
+    <form class="rf-add" data-rf="searchForm" autocomplete="off" role="search">
+      <input data-rf="searchInput" type="search" placeholder="Søk etter rett eller ingrediens, f.eks. lasagne" enterkeyhint="search" aria-label="Søk etter oppskrifter">
+    </form>
+    <ul class="rf-chips rf-cats" data-rf="cats" aria-label="Snarveier"></ul>
+  </section>
+
+  <section class="rf-card" data-rf="restBox">
     <form class="rf-add" data-rf="addForm" autocomplete="off">
       <div class="rf-tagbox" data-rf="tagbox">
         <ul class="rf-chips rf-have" data-rf="have" aria-label="Restene dine"></ul>
@@ -84,6 +99,9 @@ export function mountRestefest(root, opts = {}) {
   let basics = store.get("basicsList", DEFAULT_BASICS);
   let minUse = store.get("use", 1);
   let shown = PAGE;
+  let mode = store.get("mode", "rest"); // "rest" = fra rester, "search" = vanlig søk
+  let query = store.get("q", "");
+  const index = new WeakMap(); // oppskrift → { title, cats, keys } i søkbar form
 
   // Familiens egne oppskrifter i samme form som basen: [tittel, lenke, -1, bilde, minutter, [], ingredienser, nettsted]
   const mine = () => (opts.familyRecipes?.() || []).map((r) => [r.title, r.url, -1, r.image, r.time, [], r.keys, r.host]);
@@ -132,6 +150,36 @@ export function mountRestefest(root, opts = {}) {
     return out;
   }
 
+  // Vanlig søk: hvert ord må finnes i tittelen, kategoriene eller ingrediensene. Treff i tittelen teller mest.
+  function textSearch() {
+    const q = fold(query).trim();
+    if (!q) return [];
+    const words = q.split(/\s+/).filter(Boolean);
+    const own = mine();
+    const seen = new Set(own.map((r) => r[1]));
+    const out = [];
+    for (const r of [...own, ...(db ? db.recipes.filter((x) => !seen.has(x[1])) : [])]) {
+      let ix = index.get(r);
+      if (!ix) { ix = { title: fold(r[0]), cats: fold((r[5] || []).join(" ")), keys: r[6] || [] }; index.set(r, ix); }
+      let sc = 0;
+      for (const w of words) {
+        const nq = normQuery(w);
+        const re = new RegExp(`(^|[^a-zæøå])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+        if (re.test(ix.title)) sc += 4;
+        else if (ix.title.includes(w)) sc += 2;
+        else if (ix.cats.includes(w)) sc += 1.5;
+        else if (ix.keys.some((k) => k.includes(w) || (nq && matches(nq, k)))) sc += 1;
+        else { sc = 0; break; }
+      }
+      if (!sc) continue;
+      if (ix.title === q) sc += 10;
+      else if (ix.title.startsWith(q)) sc += 3;
+      out.push({ r, sc, used: [], need: [] });
+    }
+    out.sort((a, b) => b.sc - a.sc || (b.r[2] < 0) - (a.r[2] < 0) || (a.r[4] || 999) - (b.r[4] || 999) || a.r[0].localeCompare(b.r[0], "nb"));
+    return out;
+  }
+
   // Nedtrekksliste: legg oppskriften i ukemenyen (dagene i uken menuWeek() gir, normalt neste uke).
   function menuPicker(title, url) {
     const wk = opts.addToMenu && opts.menuWeek?.();
@@ -176,13 +224,20 @@ export function mountRestefest(root, opts = {}) {
     const meta = document.createElement("div"); meta.className = "rf-meta";
     meta.textContent = [src < 0 ? r[7] : db?.sources[src], min ? `${min} min` : ""].filter(Boolean).join(" · ");
     if (src < 0) meta.insertAdjacentHTML("beforeend", '<span class="rf-tag">Deres</span>');
-    const use = document.createElement("div"); use.className = "rf-use";
-    use.innerHTML = "Bruker <b></b>"; use.querySelector("b").textContent = joinList([...new Set(used)]);
-    body.append(h, meta, use);
-    const n = document.createElement("div");
-    if (need.length) { n.className = "rf-need"; n.innerHTML = "Mangler <b></b>"; n.querySelector("b").textContent = joinList(need); }
-    else { n.className = "rf-all"; n.textContent = "Du har alt"; }
-    body.append(n);
+    body.append(h, meta);
+    if (mode === "search") {
+      const keys = r[6] || [];
+      const ing = document.createElement("div"); ing.className = "rf-need";
+      ing.textContent = keys.length ? joinList(keys.slice(0, 8)) + (keys.length > 8 ? " …" : "") : "";
+      body.append(ing);
+    } else {
+      const use = document.createElement("div"); use.className = "rf-use";
+      use.innerHTML = "Bruker <b></b>"; use.querySelector("b").textContent = joinList([...new Set(used)]);
+      const n = document.createElement("div");
+      if (need.length) { n.className = "rf-need"; n.innerHTML = "Mangler <b></b>"; n.querySelector("b").textContent = joinList(need); }
+      else { n.className = "rf-all"; n.textContent = "Du har alt"; }
+      body.append(use, n);
+    }
     a.append(body);
     li.append(a);
     const pick = menuPicker(title, url);
@@ -191,6 +246,20 @@ export function mountRestefest(root, opts = {}) {
   }
 
   function render() {
+    const searching = mode === "search";
+    root.querySelectorAll("[data-mode]").forEach((b) => { b.classList.toggle("on", b.dataset.mode === mode); b.setAttribute("aria-selected", String(b.dataset.mode === mode)); });
+    $("searchBox").hidden = !searching;
+    $("restBox").hidden = searching;
+    if ($("searchInput").value !== query && document.activeElement !== $("searchInput")) $("searchInput").value = query;
+    $("cats").replaceChildren(...CATS.map((c) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = c;
+      b.classList.toggle("on", fold(query).trim() === fold(c));
+      b.onclick = () => { query = c; store.set("q", query); $("searchInput").value = c; shown = PAGE; render(); };
+      li.append(b);
+      return li;
+    }));
     $("have").replaceChildren(...have.map((q) => {
       const li = document.createElement("li");
       const b = document.createElement("button");
@@ -216,14 +285,19 @@ export function mountRestefest(root, opts = {}) {
       b.disabled = n !== 99 && n > Math.max(have.length, 1);
     });
     const m = $("matprat");
-    m.hidden = !have.length;
-    m.href = `https://www.matprat.no/sok?category=recipes&page=1&searchFor=${encodeURIComponent(have.join(" "))}&sort=relevant`;
+    const ext = searching ? query.trim() : have.join(" ");
+    m.hidden = !ext;
+    m.href = `https://www.matprat.no/sok?category=recipes&page=1&searchFor=${encodeURIComponent(ext)}&sort=relevant`;
     const own = mine();
     $("mineBox").hidden = !opts.importLink;
     if (!$("mineStatus").dataset.msg) $("mineStatus").textContent = own.length ? `${own.length} ${own.length === 1 ? "oppskrift" : "oppskrifter"} fra familien` : "Ingen ennå.";
     if (!db && !own.length) return;
-    const hits = search();
-    if (db || have.length) {
+    const hits = searching ? textSearch() : search();
+    if (searching) {
+      $("status").textContent = !query.trim() ? "" : hits.length
+        ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
+        : db ? "Fant ingen oppskrifter. Prøv et annet ord." : "Henter oppskrifter …";
+    } else if (db || have.length) {
       $("status").textContent = !have.length ? "" : hits.length
         ? `${hits.length.toLocaleString("nb-NO")} ${hits.length === 1 ? "oppskrift" : "oppskrifter"}`
         : minUse > 1 ? "Ingen oppskrifter bruker så mange av restene. Prøv et lavere tall under «Må bruke minst»." : "Ingen oppskrifter bruker dette.";
@@ -283,6 +357,13 @@ export function mountRestefest(root, opts = {}) {
     if (more.length) saveBasics([...basics, ...more]);
   };
   $("basicsReset").onclick = () => { if (confirm("Tilbakestille basisvarene til standardlisten?")) saveBasics([...DEFAULT_BASICS]); };
+  root.querySelectorAll("[data-mode]").forEach((b) => (b.onclick = () => {
+    mode = b.dataset.mode; store.set("mode", mode); shown = PAGE; render();
+    (mode === "search" ? $("searchInput") : $("addInput")).focus({ preventScroll: true });
+  }));
+  let typing;
+  $("searchInput").oninput = (e) => { clearTimeout(typing); typing = setTimeout(() => { query = e.target.value; store.set("q", query); shown = PAGE; render(); }, 150); };
+  $("searchForm").onsubmit = (e) => { e.preventDefault(); clearTimeout(typing); query = $("searchInput").value; store.set("q", query); shown = PAGE; render(); $("searchInput").blur(); };
   $("more").onclick = () => { shown += PAGE; render(); };
   $("linkForm").onsubmit = async (e) => {
     e.preventDefault();
